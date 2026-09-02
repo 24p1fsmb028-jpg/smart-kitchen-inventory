@@ -8,6 +8,8 @@ import alertsRouter from './routes/alerts.js';
 import shoppingListRouter from './routes/shoppingList.js';
 import settingsRouter from './routes/settings.js';
 import statsRouter from './routes/stats.js';
+import authRouter from './routes/auth.js';
+import adminRouter from './routes/admin.js';
 
 dotenv.config();
 
@@ -45,6 +47,8 @@ app.get('/api/health', (req, res) => {
 });
 
 // Mount Routes
+app.use('/api/auth', authRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/items', itemsRouter);
 app.use('/api/alerts', alertsRouter);

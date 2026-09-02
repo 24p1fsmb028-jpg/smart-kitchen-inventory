@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import pkg from 'pg';
 const { Pool } = pkg;
 import dotenv from 'dotenv';
-import { initialCategories, initialItems, initialAlerts, initialSettings } from './seedData.js';
+import { initialCategories, initialItems, initialAlerts, initialSettings, initialUsers, initialAccountRequests } from './seedData.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,6 +119,9 @@ export const initDB = async () => {
       // Check if categories are empty, auto-seed if needed
       const countRes = await client.query('SELECT COUNT(*)::int AS count FROM categories');
       const count = countRes.rows[0]?.count || 0;
+      // Check if users are seeded
+      const usersRes = await client.query('SELECT COUNT(*)::int AS count FROM users');
+      const usersCount = usersRes.rows[0]?.count || 0;
       client.release();
 
       console.log('✅ Connected to Supabase / PostgreSQL database and verified schema.');
@@ -127,6 +130,12 @@ export const initDB = async () => {
         console.log('🌱 Supabase database is empty. Auto-populating initial sample seed data...');
         await db.resetToSeed();
         console.log('✅ Seed data successfully loaded into Supabase!');
+      }
+
+      if (usersCount === 0) {
+        console.log('🔐 Seeding initial admin and demo customer accounts...');
+        await db.seedUsers();
+        console.log('✅ Default user accounts created!');
       }
 
       return;
@@ -516,6 +525,158 @@ export const db = {
     }
     await this.updateSettings({ checked_shopping_ids: checkedIds });
     return checkedIds;
+  },
+
+  // --- USERS ---
+  async getUserByEmail(email) {
+    if (usePostgres) {
+      const res = await pgPool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+      return res.rows[0] || null;
+    } else {
+      return fileStore.data.users?.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+    }
+  },
+
+  async getAllUsers() {
+    if (usePostgres) {
+      const res = await pgPool.query('SELECT * FROM users ORDER BY created_at DESC');
+      return res.rows;
+    } else {
+      return fileStore.data.users || [];
+    }
+  },
+
+  async createUser(user) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        `INSERT INTO users (id, name, email, password_hash, role, phone, kitchen_name, household_size, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [user.id, user.name, user.email, user.password_hash, user.role || 'customer',
+         user.phone || '', user.kitchen_name || 'My Kitchen', user.household_size || 2, user.status || 'active']
+      );
+      return res.rows[0];
+    } else {
+      if (!fileStore.data.users) fileStore.data.users = [];
+      fileStore.data.users.push(user);
+      fileStore.save();
+      return user;
+    }
+  },
+
+  async updateUserStatus(id, status) {
+    if (usePostgres) {
+      const res = await pgPool.query('UPDATE users SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
+      return res.rows[0] || null;
+    } else {
+      const user = fileStore.data.users?.find(u => u.id === id);
+      if (user) { user.status = status; fileStore.save(); }
+      return user || null;
+    }
+  },
+
+  async deleteUser(id) {
+    if (usePostgres) {
+      await pgPool.query('DELETE FROM users WHERE id = $1', [id]);
+      return true;
+    } else {
+      if (fileStore.data.users) {
+        fileStore.data.users = fileStore.data.users.filter(u => u.id !== id);
+        fileStore.save();
+      }
+      return true;
+    }
+  },
+
+  async seedUsers() {
+    for (const user of initialUsers) {
+      const existing = await this.getUserByEmail(user.email);
+      if (!existing) await this.createUser(user);
+    }
+    if (usePostgres) {
+      // Seed sample pending requests
+      for (const req of initialAccountRequests) {
+        const existing = await pgPool.query('SELECT id FROM account_requests WHERE email = $1', [req.email]);
+        if (existing.rows.length === 0) {
+          await pgPool.query(
+            `INSERT INTO account_requests (id, name, email, password_hash, phone, kitchen_name, household_size, notes, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [req.id, req.name, req.email, req.password_hash, req.phone, req.kitchen_name, req.household_size, req.notes, req.status]
+          );
+        }
+      }
+    } else {
+      if (!fileStore.data.account_requests) fileStore.data.account_requests = [];
+      for (const req of initialAccountRequests) {
+        if (!fileStore.data.account_requests.find(r => r.email === req.email)) {
+          fileStore.data.account_requests.push(req);
+        }
+      }
+      fileStore.save();
+    }
+  },
+
+  // --- ACCOUNT REQUESTS ---
+  async getAllRequests(statusFilter = null) {
+    if (usePostgres) {
+      if (statusFilter) {
+        const res = await pgPool.query('SELECT * FROM account_requests WHERE status = $1 ORDER BY submitted_at DESC', [statusFilter]);
+        return res.rows;
+      }
+      const res = await pgPool.query('SELECT * FROM account_requests ORDER BY submitted_at DESC');
+      return res.rows;
+    } else {
+      const all = fileStore.data.account_requests || [];
+      return statusFilter ? all.filter(r => r.status === statusFilter) : all;
+    }
+  },
+
+  async getRequestById(id) {
+    if (usePostgres) {
+      const res = await pgPool.query('SELECT * FROM account_requests WHERE id = $1', [id]);
+      return res.rows[0] || null;
+    } else {
+      return fileStore.data.account_requests?.find(r => r.id === id) || null;
+    }
+  },
+
+  async getRequestByEmail(email) {
+    if (usePostgres) {
+      const res = await pgPool.query('SELECT * FROM account_requests WHERE LOWER(email) = LOWER($1) ORDER BY submitted_at DESC LIMIT 1', [email]);
+      return res.rows[0] || null;
+    } else {
+      return fileStore.data.account_requests?.find(r => r.email.toLowerCase() === email.toLowerCase()) || null;
+    }
+  },
+
+  async createAccountRequest(request) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        `INSERT INTO account_requests (id, name, email, password_hash, phone, kitchen_name, household_size, notes, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [request.id, request.name, request.email, request.password_hash,
+         request.phone || '', request.kitchen_name || '', request.household_size || 2,
+         request.notes || '', 'pending']
+      );
+      return res.rows[0];
+    } else {
+      if (!fileStore.data.account_requests) fileStore.data.account_requests = [];
+      const newReq = { ...request, status: 'pending', submitted_at: new Date().toISOString() };
+      fileStore.data.account_requests.unshift(newReq);
+      fileStore.save();
+      return newReq;
+    }
+  },
+
+  async updateRequestStatus(id, status) {
+    if (usePostgres) {
+      await pgPool.query(
+        'UPDATE account_requests SET status = $1, reviewed_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [status, id]
+      );
+    } else {
+      const req = fileStore.data.account_requests?.find(r => r.id === id);
+      if (req) { req.status = status; req.reviewed_at = new Date().toISOString(); fileStore.save(); }
+    }
   },
 
   // --- RESET & BACKUP ---

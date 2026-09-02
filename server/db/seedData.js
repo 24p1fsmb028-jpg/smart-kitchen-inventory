@@ -458,3 +458,66 @@ export const initialSettings = {
   },
   checked_shopping_ids: ["item-meat-2"]
 };
+
+// SHA-256 hash of passwords (ski_salt_2024 suffix)
+// admin123  -> pre-computed
+// user123   -> pre-computed
+const ADMIN_HASH = 'b7e3e5f5a6c84f7c4a2d22b5a1f9c4e0a8d1b6c3f7e2a4b9c0d5e8f1a2b3c4d5'; // placeholder, seeded correctly at runtime
+
+// We store actual hashes here so seeding works without importing crypto in seedData
+// These are SHA-256('admin123' + 'ski_salt_2024') and SHA-256('user123' + 'ski_salt_2024')
+import crypto from 'crypto';
+const hash = (p) => crypto.createHash('sha256').update(p + 'ski_salt_2024').digest('hex');
+
+export const initialUsers = [
+  {
+    id: 'user-admin-001',
+    name: 'Admin Owner',
+    email: 'admin@smartkitchen.io',
+    password_hash: hash('admin123'),
+    role: 'admin',
+    phone: '03270220077',
+    kitchen_name: 'Admin Control Center',
+    household_size: 1,
+    status: 'active'
+  },
+  {
+    id: 'user-demo-001',
+    name: 'Demo Customer',
+    email: 'customer@smartkitchen.io',
+    password_hash: hash('user123'),
+    role: 'customer',
+    phone: '',
+    kitchen_name: 'Demo Family Kitchen',
+    household_size: 4,
+    status: 'active'
+  }
+];
+
+export const initialAccountRequests = [
+  {
+    id: 'req-sample-001',
+    name: 'Sarah Johnson',
+    email: 'sarah.johnson@example.com',
+    password_hash: hash('sarah2024'),
+    phone: '+1 555-0101',
+    kitchen_name: 'Johnson Household',
+    household_size: 5,
+    notes: 'I manage a large family and want to track our grocery stock efficiently.',
+    status: 'pending',
+    submitted_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'req-sample-002',
+    name: 'Ahmed Al-Rashid',
+    email: 'ahmed.rashid@example.com',
+    password_hash: hash('ahmed2024'),
+    phone: '+92 300 1234567',
+    kitchen_name: 'Al-Rashid Kitchen',
+    household_size: 6,
+    notes: 'Running a family guesthouse and need proper inventory tracking for our kitchen.',
+    status: 'pending',
+    submitted_at: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  }
+];
+

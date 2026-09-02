@@ -44,8 +44,41 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 5. Users Table (Admin & Customer roles)
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(200) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'customer', -- 'admin' | 'customer'
+    phone VARCHAR(30) DEFAULT '',
+    kitchen_name VARCHAR(150) DEFAULT 'My Kitchen',
+    household_size INT DEFAULT 2,
+    status VARCHAR(20) NOT NULL DEFAULT 'active', -- 'active' | 'suspended'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Account Requests Table (Pending approval by admin)
+CREATE TABLE IF NOT EXISTS account_requests (
+    id VARCHAR(64) PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(200) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    phone VARCHAR(30) DEFAULT '',
+    kitchen_name VARCHAR(150) DEFAULT '',
+    household_size INT DEFAULT 2,
+    notes TEXT DEFAULT '',
+    status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending' | 'approved' | 'rejected'
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP WITH TIME ZONE
+);
+
 -- Create Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_items_category_id ON items(category_id);
 CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
 CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alerts(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_alerts_read ON alerts(read);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_account_requests_status ON account_requests(status);
+CREATE INDEX IF NOT EXISTS idx_account_requests_email ON account_requests(email);

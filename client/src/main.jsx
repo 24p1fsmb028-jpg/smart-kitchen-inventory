@@ -9,21 +9,24 @@ import { ToastProvider } from './context/ToastContext';
 import { InventoryProvider } from './context/InventoryContext';
 import { AlertProvider } from './context/AlertContext';
 import { ShoppingListProvider } from './context/ShoppingListContext';
+import { AuthProvider } from './context/AuthContext';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <ToastProvider>
-          <InventoryProvider>
-            <AlertProvider>
-              <ShoppingListProvider>
-                <App />
-              </ShoppingListProvider>
-            </AlertProvider>
-          </InventoryProvider>
-        </ToastProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <InventoryProvider>
+              <AlertProvider>
+                <ShoppingListProvider>
+                  <App />
+                </ShoppingListProvider>
+              </AlertProvider>
+            </InventoryProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
