@@ -8,8 +8,9 @@
     "server": "node server/index.js",
     "client": "npm --prefix client run dev",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "build": "npm --prefix client run build",
-    "seed": "node server/db/seed.js"
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "seed": "node server/db/seed.js",
+    "postinstall": "npm --prefix client install"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
