@@ -23,31 +23,68 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Login failed.');
+    let data;
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      data = await res.json();
+    } catch {
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      data = await res.json();
+    }
+    if (!data || !data.success) throw new Error(data?.error || 'Login failed.');
     localStorage.setItem('ski_user', JSON.stringify(data.user));
     setUser(data.user);
     return data.user;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (user?.id) {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id })
+        });
+      } catch {
+        try {
+          await fetch('http://localhost:5000/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id })
+          });
+        } catch {}
+      }
+    }
     localStorage.removeItem('ski_user');
     setUser(null);
   };
 
   const submitRegistrationRequest = async (formData) => {
-    const res = await fetch(`${API_BASE}/auth/register-request`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Failed to submit request.');
+    let data;
+    try {
+      const res = await fetch('/api/auth/register-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      data = await res.json();
+    } catch {
+      const res = await fetch('http://localhost:5000/api/auth/register-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      data = await res.json();
+    }
+    if (!data || !data.success) throw new Error(data?.error || 'Failed to submit request.');
     return data;
   };
 

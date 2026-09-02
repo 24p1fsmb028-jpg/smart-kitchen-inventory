@@ -472,25 +472,32 @@ const hash = (p) => crypto.createHash('sha256').update(p + 'ski_salt_2024').dige
 export const initialUsers = [
   {
     id: 'user-admin-001',
-    name: 'Admin Owner',
-    email: 'admin@smartkitchen.io',
-    password_hash: hash('admin123'),
+    name: 'Bilal Ahmad (Admin)',
+    email: '24p1fsmb028@concordia.edu.pk',
+    password_hash: hash('bilal'),
+    password_plain: 'bilal',
     role: 'admin',
     phone: '03270220077',
     kitchen_name: 'Admin Control Center',
     household_size: 1,
-    status: 'active'
+    status: 'active',
+    is_online: true,
+    last_login: new Date().toISOString()
   },
   {
     id: 'user-demo-001',
     name: 'Demo Customer',
     email: 'customer@smartkitchen.io',
     password_hash: hash('user123'),
+    password_plain: 'user123',
     role: 'customer',
-    phone: '',
+    phone: '+92 321 9876543',
     kitchen_name: 'Demo Family Kitchen',
     household_size: 4,
-    status: 'active'
+    status: 'active',
+    is_online: false,
+    last_login: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
+    last_logout: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
   }
 ];
 
@@ -500,6 +507,7 @@ export const initialAccountRequests = [
     name: 'Sarah Johnson',
     email: 'sarah.johnson@example.com',
     password_hash: hash('sarah2024'),
+    password_plain: 'sarah2024',
     phone: '+1 555-0101',
     kitchen_name: 'Johnson Household',
     household_size: 5,
@@ -512,6 +520,7 @@ export const initialAccountRequests = [
     name: 'Ahmed Al-Rashid',
     email: 'ahmed.rashid@example.com',
     password_hash: hash('ahmed2024'),
+    password_plain: 'ahmed2024',
     phone: '+92 300 1234567',
     kitchen_name: 'Al-Rashid Kitchen',
     household_size: 6,

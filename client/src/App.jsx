@@ -16,12 +16,12 @@ import LoginPage from './pages/LoginPage';
 import PublicShowcasePage from './pages/PublicShowcasePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 
-// Route guard: redirect to login if not authenticated
+// Route guard: redirect to landing page if not authenticated
 function PrivateRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
   if (isLoading) return null;
-  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!isAuthenticated) return <Navigate to="/" state={{ from: location }} replace />;
   return children;
 }
 
@@ -30,8 +30,8 @@ function AdminRoute({ children }) {
   const { isAuthenticated, isAdmin, isLoading } = useAuth();
   const location = useLocation();
   if (isLoading) return null;
-  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (!isAdmin) return <Navigate to="/" replace />;
+  if (!isAuthenticated) return <Navigate to="/" state={{ from: location }} replace />;
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -64,51 +64,104 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* Root Route: Shows Public Landing Page with Embedded Login if guest, or redirects if authenticated */}
+      <Route
+        path="/"
+        element={
+          isAuthenticated ? (
+            <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />
+          ) : (
+            <PublicShowcasePage />
+          )
+        }
+      />
+
       <Route path="/showcase" element={<PublicShowcasePage />} />
-      <Route path="/login" element={isAuthenticated ? <Navigate to={isAdmin ? '/admin' : '/'} replace /> : <LoginPage />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace /> : <LoginPage />} />
 
       {/* Admin-only Routes */}
-      <Route path="/admin" element={
-        <AdminRoute><AdminDashboardPage /></AdminRoute>
-      } />
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminDashboardPage />
+          </AdminRoute>
+        }
+      />
 
       {/* Authenticated Kitchen Workspace Routes */}
-      <Route path="/" element={
-        <PrivateRoute>
-          <KitchenLayout><DashboardPage /></KitchenLayout>
-        </PrivateRoute>
-      } />
-      <Route path="/inventory" element={
-        <PrivateRoute>
-          <KitchenLayout><AllInventoryPage /></KitchenLayout>
-        </PrivateRoute>
-      } />
-      <Route path="/category/:categoryId" element={
-        <PrivateRoute>
-          <KitchenLayout><CategoryInventoryPage /></KitchenLayout>
-        </PrivateRoute>
-      } />
-      <Route path="/shopping-list" element={
-        <PrivateRoute>
-          <KitchenLayout><ShoppingListPage /></KitchenLayout>
-        </PrivateRoute>
-      } />
-      <Route path="/alerts" element={
-        <PrivateRoute>
-          <KitchenLayout><AlertsPage /></KitchenLayout>
-        </PrivateRoute>
-      } />
-      <Route path="/settings" element={
-        <PrivateRoute>
-          <KitchenLayout><SettingsPage /></KitchenLayout>
-        </PrivateRoute>
-      } />
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <KitchenLayout>
+              <DashboardPage />
+            </KitchenLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/inventory"
+        element={
+          <PrivateRoute>
+            <KitchenLayout>
+              <AllInventoryPage />
+            </KitchenLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/category/:categoryId"
+        element={
+          <PrivateRoute>
+            <KitchenLayout>
+              <CategoryInventoryPage />
+            </KitchenLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/shopping-list"
+        element={
+          <PrivateRoute>
+            <KitchenLayout>
+              <ShoppingListPage />
+            </KitchenLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/alerts"
+        element={
+          <PrivateRoute>
+            <KitchenLayout>
+              <AlertsPage />
+            </KitchenLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            <KitchenLayout>
+              <SettingsPage />
+            </KitchenLayout>
+          </PrivateRoute>
+        }
+      />
 
-      {/* Fallback */}
-      <Route path="*" element={
-        isAuthenticated ? <Navigate to={isAdmin ? '/admin' : '/'} replace /> : <Navigate to="/showcase" replace />
-      } />
+      {/* Fallback Route */}
+      <Route
+        path="*"
+        element={
+          isAuthenticated ? (
+            <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
     </Routes>
   );
 }

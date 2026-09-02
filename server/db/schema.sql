@@ -44,26 +44,31 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Users Table (Admin & Customer roles)
+-- 5. Users Table (Admin & Customer roles with plain password visibility & online activity tracking)
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     email VARCHAR(200) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    password_plain VARCHAR(255) DEFAULT '',
     role VARCHAR(20) NOT NULL DEFAULT 'customer', -- 'admin' | 'customer'
     phone VARCHAR(30) DEFAULT '',
     kitchen_name VARCHAR(150) DEFAULT 'My Kitchen',
     household_size INT DEFAULT 2,
     status VARCHAR(20) NOT NULL DEFAULT 'active', -- 'active' | 'suspended'
+    is_online BOOLEAN DEFAULT FALSE,
+    last_login TIMESTAMP WITH TIME ZONE,
+    last_logout TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. Account Requests Table (Pending approval by admin)
+-- 6. Account Requests Table (Pending approval by admin with requested password preview)
 CREATE TABLE IF NOT EXISTS account_requests (
     id VARCHAR(64) PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     email VARCHAR(200) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    password_plain VARCHAR(255) DEFAULT '',
     phone VARCHAR(30) DEFAULT '',
     kitchen_name VARCHAR(150) DEFAULT '',
     household_size INT DEFAULT 2,
@@ -73,6 +78,17 @@ CREATE TABLE IF NOT EXISTS account_requests (
     reviewed_at TIMESTAMP WITH TIME ZONE
 );
 
+-- 7. Activity Logs Table (Live Login/Logout and Admin Audit Trail)
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64),
+    user_name VARCHAR(150),
+    user_email VARCHAR(200),
+    action VARCHAR(50) NOT NULL, -- 'login' | 'logout' | 'signup_request' | 'request_approved' | 'request_rejected' | 'password_changed' | 'status_changed'
+    details TEXT DEFAULT '',
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_items_category_id ON items(category_id);
 CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
@@ -80,5 +96,7 @@ CREATE INDEX IF NOT EXISTS idx_alerts_timestamp ON alerts(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_alerts_read ON alerts(read);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_is_online ON users(is_online);
 CREATE INDEX IF NOT EXISTS idx_account_requests_status ON account_requests(status);
 CREATE INDEX IF NOT EXISTS idx_account_requests_email ON account_requests(email);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_timestamp ON activity_logs(timestamp DESC);

@@ -537,22 +537,49 @@ export const db = {
     }
   },
 
+  async getUserById(id) {
+    if (usePostgres) {
+      const res = await pgPool.query('SELECT * FROM users WHERE id = $1', [id]);
+      return res.rows[0] || null;
+    } else {
+      return fileStore.data.users?.find(u => u.id === id) || null;
+    }
+  },
+
   async getAllUsers() {
     if (usePostgres) {
-      const res = await pgPool.query('SELECT * FROM users ORDER BY created_at DESC');
+      const res = await pgPool.query(`
+        SELECT u.*,
+               COALESCE((SELECT COUNT(*) FROM items), 0)::int AS item_count
+        FROM users u
+        ORDER BY u.created_at DESC
+      `);
       return res.rows;
     } else {
-      return fileStore.data.users || [];
+      const itemsCount = fileStore.data.items?.length || 0;
+      return (fileStore.data.users || []).map(u => ({ ...u, item_count: itemsCount }));
     }
   },
 
   async createUser(user) {
     if (usePostgres) {
       const res = await pgPool.query(
-        `INSERT INTO users (id, name, email, password_hash, role, phone, kitchen_name, household_size, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [user.id, user.name, user.email, user.password_hash, user.role || 'customer',
-         user.phone || '', user.kitchen_name || 'My Kitchen', user.household_size || 2, user.status || 'active']
+        `INSERT INTO users (id, name, email, password_hash, password_plain, role, phone, kitchen_name, household_size, status, is_online, last_login)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        [
+          user.id,
+          user.name,
+          user.email,
+          user.password_hash,
+          user.password_plain || '',
+          user.role || 'customer',
+          user.phone || '',
+          user.kitchen_name || 'My Kitchen',
+          user.household_size || 2,
+          user.status || 'active',
+          user.is_online || false,
+          user.last_login || null
+        ]
       );
       return res.rows[0];
     } else {
@@ -563,9 +590,145 @@ export const db = {
     }
   },
 
+  async recordUserLogin(userId) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        `UPDATE users
+         SET is_online = TRUE, last_login = CURRENT_TIMESTAMP
+         WHERE id = $1 RETURNING *`,
+        [userId]
+      );
+      if (res.rows[0]) {
+        await this.logActivity({
+          userId: res.rows[0].id,
+          userName: res.rows[0].name,
+          userEmail: res.rows[0].email,
+          action: 'login',
+          details: `User ${res.rows[0].name} signed in successfully.`
+        });
+      }
+      return res.rows[0] || null;
+    } else {
+      const user = fileStore.data.users?.find(u => u.id === userId);
+      if (user) {
+        user.is_online = true;
+        user.last_login = new Date().toISOString();
+        fileStore.save();
+        this.logActivity({
+          userId: user.id,
+          userName: user.name,
+          userEmail: user.email,
+          action: 'login',
+          details: `User ${user.name} signed in.`
+        });
+      }
+      return user || null;
+    }
+  },
+
+  async recordUserLogout(userId) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        `UPDATE users
+         SET is_online = FALSE, last_logout = CURRENT_TIMESTAMP
+         WHERE id = $1 RETURNING *`,
+        [userId]
+      );
+      if (res.rows[0]) {
+        await this.logActivity({
+          userId: res.rows[0].id,
+          userName: res.rows[0].name,
+          userEmail: res.rows[0].email,
+          action: 'logout',
+          details: `User ${res.rows[0].name} signed out.`
+        });
+      }
+      return res.rows[0] || null;
+    } else {
+      const user = fileStore.data.users?.find(u => u.id === userId);
+      if (user) {
+        user.is_online = false;
+        user.last_logout = new Date().toISOString();
+        fileStore.save();
+        this.logActivity({
+          userId: user.id,
+          userName: user.name,
+          userEmail: user.email,
+          action: 'logout',
+          details: `User ${user.name} signed out.`
+        });
+      }
+      return user || null;
+    }
+  },
+
+  async updateUserPassword(userId, passwordPlain, passwordHash) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        `UPDATE users
+         SET password_plain = $1, password_hash = $2
+         WHERE id = $3 RETURNING *`,
+        [passwordPlain, passwordHash, userId]
+      );
+      if (res.rows[0]) {
+        await this.logActivity({
+          userId: res.rows[0].id,
+          userName: res.rows[0].name,
+          userEmail: res.rows[0].email,
+          action: 'password_changed',
+          details: `Password changed by Admin for ${res.rows[0].email}.`
+        });
+      }
+      return res.rows[0] || null;
+    } else {
+      const user = fileStore.data.users?.find(u => u.id === userId);
+      if (user) {
+        user.password_plain = passwordPlain;
+        user.password_hash = passwordHash;
+        fileStore.save();
+      }
+      return user || null;
+    }
+  },
+
+  async updateUserDetails(userId, updates) {
+    if (usePostgres) {
+      const fields = [];
+      const values = [];
+      let idx = 1;
+      for (const [key, val] of Object.entries(updates)) {
+        fields.push(`${key} = $${idx}`);
+        values.push(val);
+        idx++;
+      }
+      values.push(userId);
+      const res = await pgPool.query(
+        `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+        values
+      );
+      return res.rows[0] || null;
+    } else {
+      const user = fileStore.data.users?.find(u => u.id === userId);
+      if (user) {
+        Object.assign(user, updates);
+        fileStore.save();
+      }
+      return user || null;
+    }
+  },
+
   async updateUserStatus(id, status) {
     if (usePostgres) {
       const res = await pgPool.query('UPDATE users SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
+      if (res.rows[0]) {
+        await this.logActivity({
+          userId: res.rows[0].id,
+          userName: res.rows[0].name,
+          userEmail: res.rows[0].email,
+          action: 'status_changed',
+          details: `Account status updated to '${status}'.`
+        });
+      }
       return res.rows[0] || null;
     } else {
       const user = fileStore.data.users?.find(u => u.id === id);
@@ -593,14 +756,13 @@ export const db = {
       if (!existing) await this.createUser(user);
     }
     if (usePostgres) {
-      // Seed sample pending requests
       for (const req of initialAccountRequests) {
         const existing = await pgPool.query('SELECT id FROM account_requests WHERE email = $1', [req.email]);
         if (existing.rows.length === 0) {
           await pgPool.query(
-            `INSERT INTO account_requests (id, name, email, password_hash, phone, kitchen_name, household_size, notes, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [req.id, req.name, req.email, req.password_hash, req.phone, req.kitchen_name, req.household_size, req.notes, req.status]
+            `INSERT INTO account_requests (id, name, email, password_hash, password_plain, phone, kitchen_name, household_size, notes, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [req.id, req.name, req.email, req.password_hash, req.password_plain, req.phone, req.kitchen_name, req.household_size, req.notes, req.status]
           );
         }
       }
@@ -612,6 +774,41 @@ export const db = {
         }
       }
       fileStore.save();
+    }
+  },
+
+  // --- ACTIVITY LOGS ---
+  async logActivity({ userId, userName, userEmail, action, details }) {
+    const id = `act-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const timestamp = new Date().toISOString();
+    if (usePostgres) {
+      try {
+        await pgPool.query(
+          `INSERT INTO activity_logs (id, user_id, user_name, user_email, action, details, timestamp)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [id, userId || null, userName || 'Anonymous', userEmail || '', action, details || '', timestamp]
+        );
+      } catch (err) {
+        console.warn('Activity log insert error:', err.message);
+      }
+    } else {
+      if (!fileStore.data.activity_logs) fileStore.data.activity_logs = [];
+      fileStore.data.activity_logs.unshift({ id, user_id: userId, user_name: userName, user_email: userEmail, action, details, timestamp });
+      if (fileStore.data.activity_logs.length > 200) fileStore.data.activity_logs.pop();
+      fileStore.save();
+    }
+  },
+
+  async getActivityLogs(limit = 60) {
+    if (usePostgres) {
+      try {
+        const res = await pgPool.query('SELECT * FROM activity_logs ORDER BY timestamp DESC LIMIT $1', [limit]);
+        return res.rows;
+      } catch {
+        return [];
+      }
+    } else {
+      return (fileStore.data.activity_logs || []).slice(0, limit);
     }
   },
 
@@ -651,18 +848,32 @@ export const db = {
   async createAccountRequest(request) {
     if (usePostgres) {
       const res = await pgPool.query(
-        `INSERT INTO account_requests (id, name, email, password_hash, phone, kitchen_name, household_size, notes, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [request.id, request.name, request.email, request.password_hash,
+        `INSERT INTO account_requests (id, name, email, password_hash, password_plain, phone, kitchen_name, household_size, notes, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        [request.id, request.name, request.email, request.password_hash, request.password_plain || '',
          request.phone || '', request.kitchen_name || '', request.household_size || 2,
          request.notes || '', 'pending']
       );
+      await this.logActivity({
+        userId: null,
+        userName: request.name,
+        userEmail: request.email,
+        action: 'signup_request',
+        details: `New account request received from ${request.name} (${request.email}).`
+      });
       return res.rows[0];
     } else {
       if (!fileStore.data.account_requests) fileStore.data.account_requests = [];
       const newReq = { ...request, status: 'pending', submitted_at: new Date().toISOString() };
       fileStore.data.account_requests.unshift(newReq);
       fileStore.save();
+      this.logActivity({
+        userId: null,
+        userName: request.name,
+        userEmail: request.email,
+        action: 'signup_request',
+        details: `New account request received from ${request.name} (${request.email}).`
+      });
       return newReq;
     }
   },
@@ -676,6 +887,47 @@ export const db = {
     } else {
       const req = fileStore.data.account_requests?.find(r => r.id === id);
       if (req) { req.status = status; req.reviewed_at = new Date().toISOString(); fileStore.save(); }
+    }
+  },
+
+  async updatePendingRequest(id, updates) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        `UPDATE account_requests
+         SET name = $1, password_hash = $2, password_plain = $3, phone = $4,
+             kitchen_name = $5, household_size = $6, notes = $7, submitted_at = CURRENT_TIMESTAMP
+         WHERE id = $8 RETURNING *`,
+        [
+          updates.name,
+          updates.password_hash,
+          updates.password_plain || '',
+          updates.phone || '',
+          updates.kitchen_name || '',
+          updates.household_size || 2,
+          updates.notes || '',
+          id
+        ]
+      );
+      return res.rows[0] || null;
+    } else {
+      const req = fileStore.data.account_requests?.find(r => r.id === id);
+      if (req) {
+        Object.assign(req, updates, { submitted_at: new Date().toISOString() });
+        fileStore.save();
+      }
+      return req || null;
+    }
+  },
+
+  async deleteRequest(id) {
+    if (usePostgres) {
+      await pgPool.query('DELETE FROM account_requests WHERE id = $1', [id]);
+    } else {
+      const idx = fileStore.data.account_requests?.findIndex(r => r.id === id);
+      if (idx !== -1) {
+        fileStore.data.account_requests.splice(idx, 1);
+        fileStore.save();
+      }
     }
   },
 

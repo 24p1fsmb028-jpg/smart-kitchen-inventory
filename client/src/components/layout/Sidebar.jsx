@@ -7,20 +7,30 @@ import {
   Bell,
   Settings,
   Sparkles,
-  Layers
+  Layers,
+  Shield
 } from 'lucide-react';
 import { useAlerts } from '../../context/AlertContext';
 import { useInventory } from '../../context/InventoryContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Sidebar() {
   const { unreadCount } = useAlerts();
   const { stats, categories } = useInventory();
+  const { isAdmin, user } = useAuth();
 
   const urgentCount = (stats?.out_of_stock_count || 0) + (stats?.low_stock_count || 0);
 
   const navLinks = [
+    ...(isAdmin ? [{
+      to: '/admin',
+      label: 'Admin Panel',
+      icon: Shield,
+      badge: 'Owner',
+      badgeColor: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+    }] : []),
     {
-      to: '/',
+      to: '/dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
       badge: null
@@ -66,7 +76,6 @@ export default function Sidebar() {
             <NavLink
               key={link.to}
               to={link.to}
-              end={link.to === '/'}
               className={({ isActive }) =>
                 `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                   isActive

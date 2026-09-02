@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ChefHat, MessageSquare, ExternalLink, ShieldCheck, User, AlertCircle, Zap } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ChefHat,
+  MessageSquare,
+  ExternalLink,
+  ShieldCheck,
+  User,
+  AlertCircle,
+  Zap,
+  ArrowLeft,
+  CheckCircle2
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import RegisterRequestModal from '../components/auth/RegisterRequestModal';
 
 const WHATSAPP_NUMBER = '923270220077';
 const WHATSAPP_DISPLAY = '+92 327 022 0077';
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello Admin! I'd like to get an account for Smart Kitchen Inventory. Please assist.")}`;
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hello Admin! I want to get an account for Smart Kitchen Inventory. Please assist.")}`;
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -24,20 +38,7 @@ export default function LoginPage() {
     setError('');
     try {
       const user = await login(email.trim(), password);
-      navigate(user.role === 'admin' ? '/admin' : '/');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const quickLogin = async (demoEmail, demoPassword) => {
-    setLoading(true);
-    setError('');
-    try {
-      const user = await login(demoEmail, demoPassword);
-      navigate(user.role === 'admin' ? '/admin' : '/');
+      navigate(user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -46,127 +47,130 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-emerald-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden text-slate-100">
+      {/* Background ambient glow */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative w-full max-w-md space-y-6">
-        {/* Logo & Title */}
-        <div className="text-center space-y-3">
-          <div className="flex justify-center">
-            <div className="p-4 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg shadow-emerald-500/30">
-              <ChefHat size={36} className="text-white" />
-            </div>
+      <div className="w-full max-w-md space-y-6 relative z-10">
+        {/* Back to Homepage Button */}
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors py-1 px-3 rounded-lg hover:bg-slate-900"
+        >
+          <ArrowLeft size={14} />
+          <span>Back to Homepage</span>
+        </Link>
+
+        {/* Logo & Header */}
+        <div className="text-center space-y-2">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
+            <ChefHat size={30} className="text-white" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white">Smart Kitchen</h1>
-            <p className="text-emerald-400 font-medium">Inventory Management</p>
-          </div>
-          <p className="text-gray-400 text-sm">Sign in to access your kitchen workspace</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Sign In to Your Kitchen
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400">
+            Enter your email and password to access your kitchen workspace
+          </p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-gray-900/80 backdrop-blur-xl border border-gray-800 rounded-2xl shadow-2xl p-8 space-y-6">
-          {/* Error */}
+        {/* Main Card */}
+        <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-slate-800 shadow-2xl backdrop-blur-xl space-y-6">
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-900/30 border border-red-700/50 rounded-xl text-red-400 text-sm">
-              <AlertCircle size={16} className="flex-shrink-0" />
-              {error}
+            <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/60 text-rose-300 text-xs flex items-center gap-2">
+              <AlertCircle size={16} className="flex-shrink-0 text-rose-400" />
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Login Form */}
+          {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Email Address</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Email Address
+              </label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
-                  type="email" required value={email}
-                  onChange={e => { setEmail(e.target.value); setError(''); }}
-                  placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError('');
+                  }}
+                  placeholder="name@smartkitchen.io"
+                  className="w-full pl-10 pr-3.5 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Password</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Password
+              </label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
-                  type={showPassword ? 'text' : 'password'} required value={password}
-                  onChange={e => { setPassword(e.target.value); setError(''); }}
-                  placeholder="Enter your password"
-                  className="w-full pl-10 pr-12 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError('');
+                  }}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-12 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
-            <button type="submit" disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-60 text-white font-semibold rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] flex items-center justify-center gap-2 disabled:opacity-50"
+            >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
               ) : (
-                <>Sign In <Zap size={16} /></>
+                <>
+                  <Zap size={16} />
+                  <span>Sign In</span>
+                </>
               )}
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-800" />
-            <span className="text-gray-600 text-xs">Quick Demo Login</span>
-            <div className="flex-1 h-px bg-gray-800" />
-          </div>
 
-          {/* Demo Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => quickLogin('admin@smartkitchen.io', 'admin123')} disabled={loading}
-              className="flex items-center gap-2 px-4 py-3 bg-purple-900/40 hover:bg-purple-800/60 border border-purple-700/50 hover:border-purple-600 text-purple-300 rounded-xl text-sm font-medium transition-all group">
-              <ShieldCheck size={16} className="group-hover:scale-110 transition-transform" />
-              <div className="text-left">
-                <div className="text-xs font-bold">Admin Demo</div>
-                <div className="text-xs opacity-70">admin@smartkitchen.io</div>
-              </div>
+          {/* Registration Trigger & WhatsApp */}
+          <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
+            <button
+              onClick={() => setShowRegister(true)}
+              className="w-full py-2.5 rounded-xl border border-slate-700 hover:border-emerald-500/60 text-slate-300 hover:text-white text-xs font-semibold transition-colors bg-slate-950/60"
+            >
+              📋 Don't have an account? Request Access
             </button>
-            <button onClick={() => quickLogin('customer@smartkitchen.io', 'user123')} disabled={loading}
-              className="flex items-center gap-2 px-4 py-3 bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-700/50 hover:border-emerald-600 text-emerald-300 rounded-xl text-sm font-medium transition-all group">
-              <User size={16} className="group-hover:scale-110 transition-transform" />
-              <div className="text-left">
-                <div className="text-xs font-bold">Customer Demo</div>
-                <div className="text-xs opacity-70">customer@smartkitchen.io</div>
-              </div>
-            </button>
-          </div>
 
-          {/* Register / WhatsApp */}
-          <div className="space-y-3 pt-2 border-t border-gray-800">
-            <p className="text-center text-gray-500 text-sm">Don't have an account?</p>
-            <button onClick={() => setShowRegister(true)}
-              className="w-full py-3 bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-emerald-600/50 text-gray-300 hover:text-white font-medium rounded-xl transition-all text-sm">
-              📋 Request an Account
-            </button>
-            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3 bg-green-900/30 hover:bg-green-900/50 border border-green-700/50 hover:border-green-600 text-green-400 hover:text-green-300 font-medium rounded-xl transition-all text-sm">
-              <MessageSquare size={16} />
-              WhatsApp Admin: {WHATSAPP_DISPLAY}
-              <ExternalLink size={13} />
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2.5 rounded-xl bg-green-950/50 hover:bg-green-900/60 border border-green-700/60 text-green-300 text-xs font-semibold transition-colors flex items-center justify-center gap-2"
+            >
+              <MessageSquare size={14} />
+              <span>Contact Admin WhatsApp: {WHATSAPP_DISPLAY}</span>
+              <ExternalLink size={12} />
             </a>
           </div>
         </div>
-
-        {/* Footer */}
-        <p className="text-center text-gray-600 text-xs">
-          Smart Kitchen Inventory &copy; 2024 &bull; Managed by 24p1fsmb028-jpg
-        </p>
       </div>
 
       {showRegister && <RegisterRequestModal onClose={() => setShowRegister(false)} />}
