@@ -1,0 +1,17 @@
+{
+  "name": "smart-kitchen-inventory-workspace",
+  "version": "1.0.0",
+  "description": "Smart Kitchen Inventory - Full-stack grocery and kitchen stock management system",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "server": "node server/index.js",
+    "client": "npm --prefix client run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "npm --prefix client run build",
+    "seed": "node server/db/seed.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

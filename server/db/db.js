@@ -1,0 +1,592 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import pkg from 'pg';
+const { Pool } = pkg;
+import dotenv from 'dotenv';
+import { initialCategories, initialItems, initialAlerts, initialSettings } from './seedData.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.join(__dirname, '../.env');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+} else {
+  dotenv.config();
+}
+
+const DATA_DIR = path.join(__dirname, '../data');
+const STORE_PATH = path.join(DATA_DIR, 'store.json');
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+let pgPool = null;
+let usePostgres = false;
+
+// Attempt PostgreSQL / Supabase Connection if configured
+if (process.env.DATABASE_URL || process.env.PGHOST) {
+  try {
+    const isSupabase = process.env.DATABASE_URL && (
+      process.env.DATABASE_URL.includes('supabase.co') ||
+      process.env.DATABASE_URL.includes('supabase.com') ||
+      process.env.DATABASE_URL.includes('pooler.supabase.com')
+    );
+
+    const sslConfig = isSupabase || process.env.NODE_ENV === 'production' || (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('sslmode=require'))
+      ? { rejectUnauthorized: false }
+      : false;
+
+    const config = process.env.DATABASE_URL
+      ? {
+          connectionString: process.env.DATABASE_URL,
+          ssl: sslConfig
+        }
+      : {
+          host: process.env.PGHOST || 'localhost',
+          port: parseInt(process.env.PGPORT || '5432'),
+          user: process.env.PGUSER || 'postgres',
+          password: process.env.PGPASSWORD || '',
+          database: process.env.PGDATABASE || 'smart_kitchen',
+          ssl: sslConfig
+        };
+
+    pgPool = new Pool(config);
+    console.log('🔄 Initializing PostgreSQL / Supabase connection pool...');
+  } catch (err) {
+    console.warn('⚠️ PostgreSQL / Supabase initialization warning:', err.message);
+  }
+}
+
+// Memory / File Store Fallback System
+class FileStore {
+  constructor() {
+    this.data = this.load();
+  }
+
+  load() {
+    try {
+      if (fs.existsSync(STORE_PATH)) {
+        const raw = fs.readFileSync(STORE_PATH, 'utf-8');
+        return JSON.parse(raw);
+      }
+    } catch (err) {
+      console.error('Error reading store.json, resetting to seed data:', err.message);
+    }
+    const defaultData = {
+      categories: [...initialCategories],
+      items: [...initialItems],
+      alerts: [...initialAlerts],
+      settings: { ...initialSettings }
+    };
+    this.save(defaultData);
+    return defaultData;
+  }
+
+  save(dataToSave = null) {
+    try {
+      const data = dataToSave || this.data;
+      fs.writeFileSync(STORE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('Error saving to store.json:', err.message);
+    }
+  }
+
+  reset() {
+    this.data = {
+      categories: JSON.parse(JSON.stringify(initialCategories)),
+      items: JSON.parse(JSON.stringify(initialItems)),
+      alerts: JSON.parse(JSON.stringify(initialAlerts)),
+      settings: JSON.parse(JSON.stringify(initialSettings))
+    };
+    this.save();
+    return this.data;
+  }
+}
+
+const fileStore = new FileStore();
+
+export const initDB = async () => {
+  if (pgPool) {
+    try {
+      const client = await pgPool.connect();
+      const schemaSQL = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
+      await client.query(schemaSQL);
+      usePostgres = true;
+
+      // Check if categories are empty, auto-seed if needed
+      const countRes = await client.query('SELECT COUNT(*)::int AS count FROM categories');
+      const count = countRes.rows[0]?.count || 0;
+      client.release();
+
+      console.log('✅ Connected to Supabase / PostgreSQL database and verified schema.');
+
+      if (count === 0) {
+        console.log('🌱 Supabase database is empty. Auto-populating initial sample seed data...');
+        await db.resetToSeed();
+        console.log('✅ Seed data successfully loaded into Supabase!');
+      }
+
+      return;
+    } catch (err) {
+      console.warn('⚠️ Could not connect to Supabase/PostgreSQL. Using persistent local file store:', err.message);
+      usePostgres = false;
+    }
+  } else {
+    console.log('📦 Using persistent local storage adapter (Set DATABASE_URL in .env to connect to PostgreSQL/Supabase).');
+  }
+};
+
+// Database Operations
+export const db = {
+  isPostgres: () => usePostgres,
+
+  // --- CATEGORIES ---
+  async getCategories() {
+    if (usePostgres) {
+      const res = await pgPool.query(`
+        SELECT c.*, 
+               COALESCE(COUNT(i.id), 0)::int AS item_count
+        FROM categories c
+        LEFT JOIN items i ON c.id = i.category_id
+        GROUP BY c.id
+        ORDER BY c.order_index ASC, c.name ASC
+      `);
+      return res.rows;
+    } else {
+      const items = fileStore.data.items || [];
+      return fileStore.data.categories
+        .map((cat) => ({
+          ...cat,
+          item_count: items.filter((item) => item.category_id === cat.id).length
+        }))
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+    }
+  },
+
+  async getCategoryById(id) {
+    if (usePostgres) {
+      const res = await pgPool.query('SELECT * FROM categories WHERE id = $1', [id]);
+      return res.rows[0] || null;
+    } else {
+      return fileStore.data.categories.find((c) => c.id === id) || null;
+    }
+  },
+
+  async createCategory(cat) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        'INSERT INTO categories (id, name, icon, color, order_index) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [cat.id, cat.name, cat.icon || 'Folder', cat.color || 'emerald', cat.order_index || 0]
+      );
+      return res.rows[0];
+    } else {
+      fileStore.data.categories.push(cat);
+      fileStore.save();
+      return cat;
+    }
+  },
+
+  async updateCategory(id, updates) {
+    if (usePostgres) {
+      const fields = [];
+      const values = [];
+      let idx = 1;
+      for (const [key, val] of Object.entries(updates)) {
+        fields.push(`${key} = $${idx}`);
+        values.push(val);
+        idx++;
+      }
+      values.push(id);
+      const res = await pgPool.query(
+        `UPDATE categories SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+        values
+      );
+      return res.rows[0];
+    } else {
+      const index = fileStore.data.categories.findIndex((c) => c.id === id);
+      if (index === -1) return null;
+      fileStore.data.categories[index] = { ...fileStore.data.categories[index], ...updates };
+      fileStore.save();
+      return fileStore.data.categories[index];
+    }
+  },
+
+  async deleteCategory(id) {
+    if (usePostgres) {
+      await pgPool.query('DELETE FROM categories WHERE id = $1', [id]);
+      return true;
+    } else {
+      fileStore.data.categories = fileStore.data.categories.filter((c) => c.id !== id);
+      fileStore.data.items = fileStore.data.items.filter((i) => i.category_id !== id);
+      fileStore.save();
+      return true;
+    }
+  },
+
+  // --- ITEMS ---
+  async getItems(filters = {}) {
+    if (usePostgres) {
+      let query = `
+        SELECT i.*, c.name AS category_name, c.icon AS category_icon, c.color AS category_color
+        FROM items i
+        LEFT JOIN categories c ON i.category_id = c.id
+        WHERE 1=1
+      `;
+      const params = [];
+      if (filters.category_id) {
+        params.push(filters.category_id);
+        query += ` AND i.category_id = $${params.length}`;
+      }
+      if (filters.status) {
+        params.push(filters.status);
+        query += ` AND i.status = $${params.length}`;
+      }
+      if (filters.search) {
+        params.push(`%${filters.search.toLowerCase()}%`);
+        query += ` AND LOWER(i.name) LIKE $${params.length}`;
+      }
+      query += ` ORDER BY i.name ASC`;
+      const res = await pgPool.query(query, params);
+      return res.rows.map(r => ({
+        ...r,
+        current_quantity: parseFloat(r.current_quantity),
+        weekly_usage: parseFloat(r.weekly_usage),
+        low_stock_threshold: parseFloat(r.low_stock_threshold)
+      }));
+    } else {
+      let items = [...fileStore.data.items];
+      const categoriesMap = new Map(fileStore.data.categories.map((c) => [c.id, c]));
+
+      items = items.map((item) => {
+        const cat = categoriesMap.get(item.category_id);
+        return {
+          ...item,
+          category_name: cat ? cat.name : 'Uncategorized',
+          category_icon: cat ? cat.icon : 'Folder',
+          category_color: cat ? cat.color : 'slate'
+        };
+      });
+
+      if (filters.category_id) {
+        items = items.filter((i) => i.category_id === filters.category_id);
+      }
+      if (filters.status) {
+        items = items.filter((i) => i.status === filters.status);
+      }
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        items = items.filter((i) => i.name.toLowerCase().includes(q) || (i.notes && i.notes.toLowerCase().includes(q)));
+      }
+      return items.sort((a, b) => a.name.localeCompare(b.name));
+    }
+  },
+
+  async getItemById(id) {
+    if (usePostgres) {
+      const res = await pgPool.query(`
+        SELECT i.*, c.name AS category_name, c.icon AS category_icon, c.color AS category_color
+        FROM items i
+        LEFT JOIN categories c ON i.category_id = c.id
+        WHERE i.id = $1
+      `, [id]);
+      if (res.rows[0]) {
+        const r = res.rows[0];
+        return {
+          ...r,
+          current_quantity: parseFloat(r.current_quantity),
+          weekly_usage: parseFloat(r.weekly_usage),
+          low_stock_threshold: parseFloat(r.low_stock_threshold)
+        };
+      }
+      return null;
+    } else {
+      const item = fileStore.data.items.find((i) => i.id === id);
+      if (!item) return null;
+      const cat = fileStore.data.categories.find((c) => c.id === item.category_id);
+      return {
+        ...item,
+        category_name: cat ? cat.name : 'Uncategorized',
+        category_icon: cat ? cat.icon : 'Folder',
+        category_color: cat ? cat.color : 'slate'
+      };
+    }
+  },
+
+  async createItem(item) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        `INSERT INTO items (id, name, category_id, unit, current_quantity, weekly_usage, low_stock_threshold, status, icon, notes, last_updated)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+        [
+          item.id,
+          item.name,
+          item.category_id,
+          item.unit || 'pieces',
+          item.current_quantity || 0,
+          item.weekly_usage || 1,
+          item.low_stock_threshold || 1,
+          item.status || 'in_stock',
+          item.icon || 'Package',
+          item.notes || '',
+          item.last_updated || new Date().toISOString()
+        ]
+      );
+      return res.rows[0];
+    } else {
+      fileStore.data.items.push(item);
+      fileStore.save();
+      return item;
+    }
+  },
+
+  async updateItem(id, updates) {
+    updates.last_updated = new Date().toISOString();
+    if (usePostgres) {
+      const fields = [];
+      const values = [];
+      let idx = 1;
+      for (const [key, val] of Object.entries(updates)) {
+        fields.push(`${key} = $${idx}`);
+        values.push(val);
+        idx++;
+      }
+      values.push(id);
+      const res = await pgPool.query(
+        `UPDATE items SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+        values
+      );
+      return res.rows[0];
+    } else {
+      const index = fileStore.data.items.findIndex((i) => i.id === id);
+      if (index === -1) return null;
+      fileStore.data.items[index] = { ...fileStore.data.items[index], ...updates };
+      fileStore.save();
+      return fileStore.data.items[index];
+    }
+  },
+
+  async deleteItem(id) {
+    if (usePostgres) {
+      await pgPool.query('DELETE FROM items WHERE id = $1', [id]);
+      return true;
+    } else {
+      fileStore.data.items = fileStore.data.items.filter((i) => i.id !== id);
+      fileStore.data.alerts = fileStore.data.alerts.filter((a) => a.item_id !== id);
+      fileStore.save();
+      return true;
+    }
+  },
+
+  // --- ALERTS ---
+  async getAlerts(limit = 100) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        'SELECT * FROM alerts ORDER BY timestamp DESC LIMIT $1',
+        [limit]
+      );
+      return res.rows;
+    } else {
+      return [...fileStore.data.alerts]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, limit);
+    }
+  },
+
+  async createAlert(alert) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        `INSERT INTO alerts (id, item_id, item_name, type, message, timestamp, read)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [
+          alert.id,
+          alert.item_id,
+          alert.item_name,
+          alert.type,
+          alert.message,
+          alert.timestamp || new Date().toISOString(),
+          alert.read || false
+        ]
+      );
+      return res.rows[0];
+    } else {
+      fileStore.data.alerts.unshift(alert);
+      if (fileStore.data.alerts.length > 200) {
+        fileStore.data.alerts = fileStore.data.alerts.slice(0, 200);
+      }
+      fileStore.save();
+      return alert;
+    }
+  },
+
+  async markAlertAsRead(id) {
+    if (usePostgres) {
+      const res = await pgPool.query('UPDATE alerts SET read = TRUE WHERE id = $1 RETURNING *', [id]);
+      return res.rows[0];
+    } else {
+      const alert = fileStore.data.alerts.find((a) => a.id === id);
+      if (alert) {
+        alert.read = true;
+        fileStore.save();
+      }
+      return alert;
+    }
+  },
+
+  async markAllAlertsAsRead() {
+    if (usePostgres) {
+      await pgPool.query('UPDATE alerts SET read = TRUE');
+      return true;
+    } else {
+      fileStore.data.alerts.forEach((a) => (a.read = true));
+      fileStore.save();
+      return true;
+    }
+  },
+
+  async deleteAlert(id) {
+    if (usePostgres) {
+      await pgPool.query('DELETE FROM alerts WHERE id = $1', [id]);
+      return true;
+    } else {
+      fileStore.data.alerts = fileStore.data.alerts.filter((a) => a.id !== id);
+      fileStore.save();
+      return true;
+    }
+  },
+
+  async clearAllAlerts() {
+    if (usePostgres) {
+      await pgPool.query('DELETE FROM alerts');
+      return true;
+    } else {
+      fileStore.data.alerts = [];
+      fileStore.save();
+      return true;
+    }
+  },
+
+  // --- SETTINGS ---
+  async getSettings() {
+    if (usePostgres) {
+      const res = await pgPool.query('SELECT * FROM settings WHERE id = $1', ['default_settings']);
+      if (res.rows[0]) return res.rows[0];
+      return initialSettings;
+    } else {
+      return fileStore.data.settings || initialSettings;
+    }
+  },
+
+  async updateSettings(updates) {
+    if (usePostgres) {
+      const current = await this.getSettings();
+      const newProfile = updates.profile ? JSON.stringify({ ...current.profile, ...updates.profile }) : JSON.stringify(current.profile);
+      const newNotifs = updates.notifications ? JSON.stringify({ ...current.notifications, ...updates.notifications }) : JSON.stringify(current.notifications);
+      const res = await pgPool.query(
+        `INSERT INTO settings (id, profile, notifications, updated_at)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+         ON CONFLICT (id) DO UPDATE 
+         SET profile = EXCLUDED.profile, notifications = EXCLUDED.notifications, updated_at = CURRENT_TIMESTAMP
+         RETURNING *`,
+        ['default_settings', newProfile, newNotifs]
+      );
+      return res.rows[0];
+    } else {
+      fileStore.data.settings = {
+        ...fileStore.data.settings,
+        ...updates,
+        profile: { ...fileStore.data.settings?.profile, ...updates.profile },
+        notifications: { ...fileStore.data.settings?.notifications, ...updates.notifications }
+      };
+      fileStore.save();
+      return fileStore.data.settings;
+    }
+  },
+
+  // --- SHOPPING LIST CHECKED STATUS ---
+  async toggleShoppingChecked(itemId, checked) {
+    const settings = await this.getSettings();
+    let checkedIds = settings.checked_shopping_ids || [];
+    if (checked) {
+      if (!checkedIds.includes(itemId)) checkedIds.push(itemId);
+    } else {
+      checkedIds = checkedIds.filter((id) => id !== itemId);
+    }
+    await this.updateSettings({ checked_shopping_ids: checkedIds });
+    return checkedIds;
+  },
+
+  // --- RESET & BACKUP ---
+  async resetToSeed() {
+    if (usePostgres) {
+      await pgPool.query('DELETE FROM alerts');
+      await pgPool.query('DELETE FROM items');
+      await pgPool.query('DELETE FROM categories');
+      for (const cat of initialCategories) {
+        await this.createCategory(cat);
+      }
+      for (const item of initialItems) {
+        await this.createItem(item);
+      }
+      for (const alert of initialAlerts) {
+        await this.createAlert(alert);
+      }
+      await this.updateSettings(initialSettings);
+      return { success: true, message: 'Database reset to sample seed data.' };
+    } else {
+      fileStore.reset();
+      return { success: true, message: 'Local storage reset to sample seed data.' };
+    }
+  },
+
+  async exportData() {
+    const categories = await this.getCategories();
+    const items = await this.getItems();
+    const alerts = await this.getAlerts();
+    const settings = await this.getSettings();
+    return {
+      version: '1.0.0',
+      exported_at: new Date().toISOString(),
+      categories,
+      items,
+      alerts,
+      settings
+    };
+  },
+
+  async importData(imported) {
+    if (!imported || !Array.isArray(imported.categories) || !Array.isArray(imported.items)) {
+      throw new Error('Invalid import format. Expected categories and items arrays.');
+    }
+    if (usePostgres) {
+      await pgPool.query('DELETE FROM alerts');
+      await pgPool.query('DELETE FROM items');
+      await pgPool.query('DELETE FROM categories');
+      for (const cat of imported.categories) {
+        await this.createCategory(cat);
+      }
+      for (const item of imported.items) {
+        await this.createItem(item);
+      }
+      if (Array.isArray(imported.alerts)) {
+        for (const alert of imported.alerts) {
+          await this.createAlert(alert);
+        }
+      }
+      if (imported.settings) {
+        await this.updateSettings(imported.settings);
+      }
+    } else {
+      fileStore.data = {
+        categories: imported.categories,
+        items: imported.items,
+        alerts: imported.alerts || [],
+        settings: imported.settings || initialSettings
+      };
+      fileStore.save();
+    }
+    return { success: true, count_categories: imported.categories.length, count_items: imported.items.length };
+  }
+};
