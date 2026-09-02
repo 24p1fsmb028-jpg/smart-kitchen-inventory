@@ -1001,5 +1001,101 @@ export const db = {
       fileStore.save();
     }
     return { success: true, count_categories: imported.categories.length, count_items: imported.items.length };
+  },
+
+  // --- SEED NEW USER STARTER INVENTORY ---
+  // Called once each time a brand-new customer account is approved.
+  // Inserts 2 default categories + 10 basic food items into the SHARED inventory
+  // using ON CONFLICT DO NOTHING so existing entries are never overwritten.
+  async seedNewUserInventory() {
+    const { v4: uuid } = await import('uuid');
+
+    const starterCategories = [
+      {
+        id: 'cat-starter-pantry',
+        name: 'Essential Pantry Staples',
+        icon: 'ShoppingBag',
+        color: 'amber',
+        order_index: 10
+      },
+      {
+        id: 'cat-starter-produce',
+        name: 'Fresh Produce Basics',
+        icon: 'Apple',
+        color: 'emerald',
+        order_index: 11
+      }
+    ];
+
+    const starterItems = [
+      // Essential Pantry Staples (5 items)
+      { name: 'Basmati Rice',        category_id: 'cat-starter-pantry',   unit: 'kg',     current_quantity: 5,   weekly_usage: 2,   low_stock_threshold: 2,   status: 'in_stock',  icon: 'Wheat',      notes: 'Long-grain aromatic rice for daily meals' },
+      { name: 'Cooking Oil',         category_id: 'cat-starter-pantry',   unit: 'liters', current_quantity: 2,   weekly_usage: 0.5, low_stock_threshold: 0.5, status: 'in_stock',  icon: 'Droplets',   notes: 'All-purpose vegetable oil for frying and cooking' },
+      { name: 'Table Salt',          category_id: 'cat-starter-pantry',   unit: 'kg',     current_quantity: 1,   weekly_usage: 0.1, low_stock_threshold: 0.2, status: 'in_stock',  icon: 'Sparkles',   notes: 'Iodised table salt' },
+      { name: 'All-Purpose Flour',   category_id: 'cat-starter-pantry',   unit: 'kg',     current_quantity: 3,   weekly_usage: 0.8, low_stock_threshold: 1,   status: 'in_stock',  icon: 'Wheat',      notes: 'Flour for bread, roti, and baking' },
+      { name: 'White Sugar',         category_id: 'cat-starter-pantry',   unit: 'kg',     current_quantity: 2,   weekly_usage: 0.3, low_stock_threshold: 0.5, status: 'in_stock',  icon: 'Cookie',     notes: 'Granulated white sugar for tea and baking' },
+      // Fresh Produce Basics (5 items)
+      { name: 'Onions',              category_id: 'cat-starter-produce',  unit: 'kg',     current_quantity: 2,   weekly_usage: 1,   low_stock_threshold: 1,   status: 'in_stock',  icon: 'Circle',     notes: 'Yellow onions for everyday cooking' },
+      { name: 'Tomatoes',            category_id: 'cat-starter-produce',  unit: 'kg',     current_quantity: 1.5, weekly_usage: 1,   low_stock_threshold: 0.5, status: 'in_stock',  icon: 'Cherry',     notes: 'Fresh tomatoes for curries and salads' },
+      { name: 'Potatoes',            category_id: 'cat-starter-produce',  unit: 'kg',     current_quantity: 3,   weekly_usage: 1.5, low_stock_threshold: 1,   status: 'in_stock',  icon: 'Circle',     notes: 'Versatile potatoes for curries and frying' },
+      { name: 'Garlic',              category_id: 'cat-starter-produce',  unit: 'pieces', current_quantity: 6,   weekly_usage: 2,   low_stock_threshold: 2,   status: 'in_stock',  icon: 'Flower',     notes: 'Fresh garlic bulbs for flavouring' },
+      { name: 'Green Chilies',       category_id: 'cat-starter-produce',  unit: 'pieces', current_quantity: 10,  weekly_usage: 5,   low_stock_threshold: 3,   status: 'in_stock',  icon: 'Flame',      notes: 'Fresh green chilies for spice' }
+    ];
+
+    if (usePostgres) {
+      // Insert categories (skip if already present)
+      for (const cat of starterCategories) {
+        await pgPool.query(
+          `INSERT INTO categories (id, name, icon, color, order_index)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (id) DO NOTHING`,
+          [cat.id, cat.name, cat.icon, cat.color, cat.order_index]
+        );
+      }
+      // Insert items (skip if already present)
+      for (const item of starterItems) {
+        const itemId = `item-starter-${item.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`;
+        await pgPool.query(
+          `INSERT INTO items (id, name, category_id, unit, current_quantity, weekly_usage, low_stock_threshold, status, icon, notes, last_updated)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (id) DO NOTHING`,
+          [
+            itemId,
+            item.name,
+            item.category_id,
+            item.unit,
+            item.current_quantity,
+            item.weekly_usage,
+            item.low_stock_threshold,
+            item.status,
+            item.icon,
+            item.notes,
+            new Date().toISOString()
+          ]
+        );
+      }
+    } else {
+      // File store fallback — insert only if not already present
+      for (const cat of starterCategories) {
+        const exists = fileStore.data.categories?.find(c => c.id === cat.id);
+        if (!exists) {
+          fileStore.data.categories = fileStore.data.categories || [];
+          fileStore.data.categories.push(cat);
+        }
+      }
+      for (const item of starterItems) {
+        const itemId = `item-starter-${item.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`;
+        const exists = fileStore.data.items?.find(i => i.id === itemId);
+        if (!exists) {
+          fileStore.data.items = fileStore.data.items || [];
+          fileStore.data.items.push({ ...item, id: itemId, last_updated: new Date().toISOString() });
+        }
+      }
+      fileStore.save();
+    }
+
+    console.log(`✅ Starter inventory seeded: ${starterCategories.length} categories + ${starterItems.length} items.`);
+    return { categories: starterCategories.length, items: starterItems.length };
   }
 };
+

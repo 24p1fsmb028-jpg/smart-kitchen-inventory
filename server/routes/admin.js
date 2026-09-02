@@ -107,6 +107,14 @@ router.post('/requests/:id/approve', async (req, res) => {
         household_size: request.household_size || 2,
         status: 'active'
       });
+
+      // Seed 2 starter categories + 10 basic food items for every new account
+      try {
+        await db.seedNewUserInventory();
+        console.log(`🌱 Starter inventory seeded for new customer: ${request.name}`);
+      } catch (seedErr) {
+        console.warn('⚠️ Starter inventory seed warning (non-fatal):', seedErr.message);
+      }
     }
 
     // Update request status to approved
