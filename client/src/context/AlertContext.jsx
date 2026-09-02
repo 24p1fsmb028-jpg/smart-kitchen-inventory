@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 
 const AlertContext = createContext(null);
 
@@ -9,8 +10,10 @@ export function AlertProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
 
   const fetchAlerts = useCallback(async () => {
+    if (!isAuthenticated) return;
     try {
       const res = await api.getAlerts();
       setAlerts(res.data || []);
@@ -18,14 +21,15 @@ export function AlertProvider({ children }) {
     } catch (err) {
       console.error('Failed to fetch alerts:', err);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     fetchAlerts();
-    // Periodic refresh every 15 seconds
-    const interval = setInterval(fetchAlerts, 15000);
+    // Periodic refresh every 20 seconds
+    const interval = setInterval(fetchAlerts, 20000);
     return () => clearInterval(interval);
-  }, [fetchAlerts]);
+  }, [fetchAlerts, isAuthenticated]);
 
   const markAsRead = async (id) => {
     try {

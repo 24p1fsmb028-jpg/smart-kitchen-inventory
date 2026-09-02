@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../services/api';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 
 const InventoryContext = createContext(null);
 
@@ -8,12 +9,19 @@ export function InventoryProvider({ children }) {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   const refreshAll = useCallback(async () => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const [catsRes, itemsRes, statsRes] = await Promise.all([
@@ -26,15 +34,17 @@ export function InventoryProvider({ children }) {
       setStats(statsRes.data || null);
     } catch (err) {
       console.error('Failed to load inventory data:', err);
-      toast.error('Failed to load inventory data. Check connection.');
+      toastRef.current?.error('Failed to load inventory data. Check connection.');
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    refreshAll();
-  }, [refreshAll, refreshTrigger]);
+    if (isAuthenticated) {
+      refreshAll();
+    }
+  }, [refreshAll, refreshTrigger, isAuthenticated]);
 
   const triggerRefresh = () => setRefreshTrigger((prev) => prev + 1);
 

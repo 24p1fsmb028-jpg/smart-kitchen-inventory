@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 
 const ShoppingListContext = createContext(null);
 
@@ -12,8 +13,10 @@ export function ShoppingListProvider({ children }) {
   const [loading, setLoading] = useState(false);
 
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
 
   const fetchShoppingList = useCallback(async () => {
+    if (!isAuthenticated) return;
     try {
       setLoading(true);
       const res = await api.getShoppingList();
@@ -27,11 +30,13 @@ export function ShoppingListProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    fetchShoppingList();
-  }, [fetchShoppingList]);
+    if (isAuthenticated) {
+      fetchShoppingList();
+    }
+  }, [fetchShoppingList, isAuthenticated]);
 
   const toggleCheck = async (itemId, currentChecked) => {
     const nextChecked = !currentChecked;

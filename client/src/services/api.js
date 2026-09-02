@@ -13,13 +13,17 @@ async function request(endpoint, options = {}) {
 
   try {
     const res = await fetch(url, { ...options, headers });
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`API returned unexpected format (${res.status}).`);
+    }
     const json = await res.json();
     if (!res.ok || json.success === false) {
       throw new Error(json.error || json.message || `Request failed with status ${res.status}`);
     }
     return json;
   } catch (err) {
-    console.error(`API Error [${options.method || 'GET'} ${endpoint}]:`, err.message);
+    console.warn(`API [${options.method || 'GET'} ${endpoint}]:`, err.message);
     throw err;
   }
 }
