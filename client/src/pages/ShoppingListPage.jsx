@@ -106,7 +106,7 @@ export default function ShoppingListPage() {
             )}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Cross (✗) indicates items still needing restock • Tick (✓) indicates restocked items
+            Needs Stock indicates items to buy • Click the tick button (✓) when restocked
           </p>
         </div>
 
@@ -271,7 +271,7 @@ export default function ShoppingListPage() {
 
                           {/* Right Section: Needs Stock + Interactive Tick Button */}
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                            <span className="text-xs font-semibold text-rose-600 dark:text-rose-400 whitespace-nowrap">
                               Needs Stock
                             </span>
                             <button
@@ -335,7 +335,7 @@ export default function ShoppingListPage() {
 
                   {/* Right Section: Needs Stock + Interactive Tick Button */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                    <span className="text-xs font-semibold text-rose-600 dark:text-rose-400 whitespace-nowrap">
                       Needs Stock
                     </span>
                     <button
@@ -383,7 +383,7 @@ export default function ShoppingListPage() {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                     Restocked
                   </span>
                   <button

@@ -17,7 +17,7 @@ export default function MobileNav() {
   const urgentCount = (stats?.out_of_stock_count || 0) + (stats?.low_stock_count || 0);
 
   const links = [
-    { to: '/', label: 'Home', icon: LayoutDashboard },
+    { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
     { to: '/inventory', label: 'Stock', icon: Boxes },
     {
       to: '/shopping-list',
@@ -42,7 +42,7 @@ export default function MobileNav() {
           <NavLink
             key={link.to}
             to={link.to}
-            end={link.to === '/'}
+            end={link.to === '/dashboard'}
             className={({ isActive }) =>
               `relative flex flex-col items-center py-1 px-3 rounded-xl transition-all ${
                 isActive

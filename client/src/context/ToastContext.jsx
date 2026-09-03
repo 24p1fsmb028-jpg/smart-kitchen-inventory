@@ -35,7 +35,7 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={{ toast, addToast, removeToast }}>
       {children}
       {/* Toast Render Portal */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+      <div className="fixed bottom-20 sm:bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">
         {toasts.map((t) => {
           let bgClass = 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-700';
           let IconComponent = Info;
