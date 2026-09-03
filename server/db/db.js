@@ -61,6 +61,7 @@ if (effectiveDbUrl || process.env.PGHOST) {
         };
 
     pgPool = new Pool(config);
+    usePostgres = true;
     console.log('🔄 Initializing PostgreSQL / Supabase connection pool...');
   } catch (err) {
     console.warn('⚠️ PostgreSQL / Supabase initialization warning:', err.message);
