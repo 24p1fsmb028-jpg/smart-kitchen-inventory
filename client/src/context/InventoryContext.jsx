@@ -9,8 +9,9 @@ export function InventoryProvider({ children }) {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const fetchedRef = useRef(false);
 
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
@@ -39,6 +40,7 @@ export function InventoryProvider({ children }) {
       if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
         setStats(statsRes.value.data);
       }
+      fetchedRef.current = true;
     } catch (err) {
       console.error('Failed to load inventory data:', err);
     } finally {
@@ -49,6 +51,8 @@ export function InventoryProvider({ children }) {
   useEffect(() => {
     if (isAuthenticated) {
       refreshAll();
+    } else {
+      setLoading(false);
     }
   }, [refreshAll, refreshTrigger, isAuthenticated]);
 

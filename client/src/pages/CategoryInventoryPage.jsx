@@ -32,7 +32,8 @@ export default function CategoryInventoryPage() {
 
   useEffect(() => {
     refreshAll();
-  }, [refreshAll]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'in_stock' | 'low' | 'out_of_stock'

@@ -38,10 +38,12 @@ export default function DashboardPage() {
 
   const navigate = useNavigate();
 
-  // Always refresh inventory data when dashboard mounts
+  // Fire refreshAll exactly once every time this page mounts (including navigation from /admin)
+  // Using empty deps [] ensures it fires on mount, not on re-renders
   useEffect(() => {
     refreshAll();
-  }, [refreshAll]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Modals state
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -84,7 +86,8 @@ export default function DashboardPage() {
     })
     .slice(0, 5);
 
-  if (loading && !stats) {
+  // Show spinner while loading OR if data hasn't arrived yet (e.g. navigating from admin panel)
+  if (loading || (!stats && categories.length === 0)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
