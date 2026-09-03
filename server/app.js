@@ -47,6 +47,28 @@ const healthHandler = (req, res) => {
 app.get('/api/health', healthHandler);
 app.get('/health', healthHandler);
 
+let dbPromise = null;
+export async function ensureDB() {
+  if (!dbPromise) {
+    dbPromise = initDB().catch((err) => {
+      console.error('Database connection error in ensureDB:', err);
+      dbPromise = null;
+      throw err;
+    });
+  }
+  return dbPromise;
+}
+
+// Ensure database is initialized before any route executes
+app.use(async (req, res, next) => {
+  try {
+    await ensureDB();
+  } catch (err) {
+    console.warn('DB initialization deferred:', err.message);
+  }
+  next();
+});
+
 // Mount Routes (support both /api/path and /path for Vercel rewrites)
 app.use('/api/auth', authRouter);
 app.use('/auth', authRouter);
@@ -80,13 +102,5 @@ app.use((err, req, res, next) => {
     error: err.message || 'Internal server error'
   });
 });
-
-let dbInitialized = false;
-export async function ensureDB() {
-  if (!dbInitialized) {
-    await initDB();
-    dbInitialized = true;
-  }
-}
 
 export default app;

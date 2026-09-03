@@ -86,8 +86,8 @@ export default function DashboardPage() {
     })
     .slice(0, 5);
 
-  // Show spinner while loading OR if data hasn't arrived yet (e.g. navigating from admin panel)
-  if (loading || (!stats && categories.length === 0)) {
+  // Show spinner only while actively loading initial stats
+  if (loading && !stats) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">

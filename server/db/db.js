@@ -18,9 +18,13 @@ if (fs.existsSync(envPath)) {
 const DATA_DIR = path.join(__dirname, '../data');
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+// Ensure data directory exists (guarded for read-only serverless filesystems like Vercel)
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+} catch {
+  // Read-only filesystem in serverless environments
 }
 
 let pgPool = null;
@@ -90,10 +94,12 @@ class FileStore {
 
   save(dataToSave = null) {
     try {
-      const data = dataToSave || this.data;
-      fs.writeFileSync(STORE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+      if (fs.existsSync(DATA_DIR)) {
+        const data = dataToSave || this.data;
+        fs.writeFileSync(STORE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+      }
     } catch (err) {
-      console.error('Error saving to store.json:', err.message);
+      console.warn('FileStore save notice (read-only):', err.message);
     }
   }
 
