@@ -322,29 +322,29 @@ export default function AdminDashboardPage() {
 
       {/* ── TOP HEADER ── */}
       <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-xl border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-purple-900/40">
-              <Shield className="w-6 h-6" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 flex-shrink-0 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-purple-900/40">
+              <Shield className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg tracking-tight text-white">Admin Master Control</span>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-purple-950 border border-purple-700 text-purple-300">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-extrabold text-base sm:text-lg tracking-tight text-white truncate">Admin Master Control</span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-purple-950 border border-purple-700 text-purple-300 flex-shrink-0">
                   SUPERUSER
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 truncate hidden sm:block">
                 Logged in as <strong className="text-slate-200">{user?.email}</strong> ({user?.name})
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={fetchAllData}
               disabled={loading}
-              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
               title="Refresh Live Data"
             >
               <RefreshCw size={16} className={loading ? 'animate-spin text-purple-400' : ''} />
@@ -352,10 +352,10 @@ export default function AdminDashboardPage() {
 
             <button
               onClick={() => navigate('/dashboard')}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              className="px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5"
             >
               <Home size={14} className="text-emerald-400" />
-              <span>Kitchen View</span>
+              <span className="hidden sm:inline">Kitchen View</span>
             </button>
 
             <button
@@ -363,10 +363,10 @@ export default function AdminDashboardPage() {
                 logout();
                 navigate('/');
               }}
-              className="px-3.5 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-800/60 text-rose-300 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              className="px-2.5 sm:px-3.5 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-800/60 text-rose-300 text-xs font-semibold transition-colors flex items-center gap-1.5"
             >
               <LogOut size={14} />
-              <span>Sign Out</span>
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>

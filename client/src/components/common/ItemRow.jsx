@@ -48,7 +48,7 @@ export default function ItemRow({
       {/* Main Row */}
       <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* Left: Icon, Name & Category */}
-        <div className="flex items-center gap-3.5 min-w-[220px]">
+        <div className="flex items-center gap-3.5 min-w-0 flex-shrink-0 sm:w-52">
           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center flex-shrink-0">
             <DynamicIcon name={item.icon} className="w-5 h-5" />
           </div>
@@ -68,7 +68,7 @@ export default function ItemRow({
         </div>
 
         {/* Middle: Progress Bar & Days left */}
-        <div className="flex-1 max-w-xs px-1 sm:px-4">
+        <div className="flex-1 min-w-0 px-1 sm:px-4">
           <div className="flex justify-between items-center text-xs mb-1.5">
             <span className="font-medium text-slate-700 dark:text-slate-300">
               {item.current_quantity} <span className="text-slate-500 font-normal">{item.unit}</span>

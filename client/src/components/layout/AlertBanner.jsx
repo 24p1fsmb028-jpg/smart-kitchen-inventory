@@ -55,7 +55,7 @@ export default function AlertBanner({ outOfStockCount = 0, lowStockCount = 0 }) 
         className={`px-4 py-2 text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 flex-shrink-0 ${buttonStyle}`}
       >
         <ShoppingBag className="w-4 h-4" />
-        <span>View shopping list</span>
+        <span>See Shopping List</span>
         <ArrowRight className="w-3.5 h-3.5" />
       </button>
     </div>

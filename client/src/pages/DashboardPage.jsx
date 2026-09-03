@@ -166,7 +166,7 @@ export default function DashboardPage() {
 
       {/* Needs Attention Section */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <span>Needs attention</span>
@@ -181,7 +181,7 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleOpenAddItem}
               className="px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
@@ -191,10 +191,15 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => navigate('/shopping-list')}
-              className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl shadow-xs transition-colors hidden sm:flex items-center gap-1.5"
+              className="px-3.5 py-1.5 text-xs font-semibold text-white bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
             >
               <ShoppingBag className="w-4 h-4" />
-              <span>Go to shopping list</span>
+              <span>See Shopping List</span>
+              {urgentItems.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-rose-500 text-white font-bold">
+                  {urgentItems.length}
+                </span>
+              )}
             </button>
           </div>
         </div>

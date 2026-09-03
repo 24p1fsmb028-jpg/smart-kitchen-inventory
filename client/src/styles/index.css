@@ -3,8 +3,12 @@
 @tailwind utilities;
 
 @layer base {
-  body {
+  html, body {
+    overflow-x: hidden;
     @apply transition-colors duration-200;
+  }
+  *, *::before, *::after {
+    box-sizing: border-box;
   }
 }
 

@@ -1,16 +1,17 @@
-// Seed data with categories, items (with low, out, and in stock examples), and initial settings
+// Seed data with exactly 4 categories and 20 basic food products (5 per category)
+// Users can add more categories and products themselves whenever they want.
 
 export const initialCategories = [
   {
     id: "cat-produce",
-    name: "Produce",
+    name: "Fresh Produce",
     icon: "Apple",
     color: "emerald",
     order_index: 0
   },
   {
     id: "cat-dairy",
-    name: "Dairy & Refrigerated",
+    name: "Dairy & Breakfast",
     icon: "Milk",
     color: "blue",
     order_index: 1
@@ -23,193 +24,155 @@ export const initialCategories = [
     order_index: 2
   },
   {
-    id: "cat-bakery",
-    name: "Bakery & Grains",
+    id: "cat-pantry",
+    name: "Pantry Staples & Grains",
     icon: "Wheat",
     color: "amber",
     order_index: 3
-  },
-  {
-    id: "cat-canned",
-    name: "Canned & Pantry",
-    icon: "Package",
-    color: "violet",
-    order_index: 4
-  },
-  {
-    id: "cat-beverages",
-    name: "Beverages & Snacks",
-    icon: "Coffee",
-    color: "orange",
-    order_index: 5
   }
 ];
 
 export const initialItems = [
-  // Produce
+  // 1. Fresh Produce (5 products)
   {
     id: "item-prod-1",
-    name: "Honeycrisp Apples",
+    name: "Yellow Onions",
     category_id: "cat-produce",
     unit: "kg",
-    current_quantity: 2.5,
-    weekly_usage: 1.5,
-    low_stock_threshold: 1.0,
-    status: "in_stock",
-    icon: "Apple",
-    notes: "Organic crisp apples for snacks and baking"
+    current_quantity: 0,
+    weekly_usage: 2.0,
+    low_stock_threshold: 1.5,
+    status: "out_of_stock",
+    icon: "Circle",
+    notes: "Essential yellow cooking onions"
   },
   {
     id: "item-prod-2",
-    name: "Baby Spinach",
+    name: "Fresh Tomatoes",
     category_id: "cat-produce",
-    unit: "packs",
+    unit: "kg",
     current_quantity: 0.5,
     weekly_usage: 2.0,
     low_stock_threshold: 1.0,
     status: "low",
-    icon: "Salad",
-    notes: "Half a pack left, need for salads"
+    icon: "Cherry",
+    notes: "Ripe cooking tomatoes"
   },
   {
     id: "item-prod-3",
-    name: "Ripe Bananas",
+    name: "Potatoes",
     category_id: "cat-produce",
-    unit: "pieces",
-    current_quantity: 0,
-    weekly_usage: 7.0,
-    low_stock_threshold: 3.0,
-    status: "out_of_stock",
-    icon: "Banana",
-    notes: "Completely finished yesterday"
+    unit: "kg",
+    current_quantity: 4.0,
+    weekly_usage: 2.0,
+    low_stock_threshold: 1.5,
+    status: "in_stock",
+    icon: "Circle",
+    notes: "All-purpose potatoes"
   },
   {
     id: "item-prod-4",
-    name: "Roma Tomatoes",
+    name: "Fresh Garlic",
     category_id: "cat-produce",
-    unit: "kg",
-    current_quantity: 1.8,
-    weekly_usage: 1.2,
-    low_stock_threshold: 0.8,
-    status: "in_stock",
-    icon: "Citrus",
-    notes: "Great for pasta sauces and fresh salsa"
+    unit: "pieces",
+    current_quantity: 0,
+    weekly_usage: 2.0,
+    low_stock_threshold: 2.0,
+    status: "out_of_stock",
+    icon: "Flower",
+    notes: "Garlic bulbs"
   },
   {
     id: "item-prod-5",
-    name: "Yellow Onions",
+    name: "Red Apples",
     category_id: "cat-produce",
     unit: "kg",
-    current_quantity: 0.4,
-    weekly_usage: 1.5,
-    low_stock_threshold: 1.0,
-    status: "low",
-    icon: "Egg",
-    notes: "Running low on cooking aromatics"
-  },
-  {
-    id: "item-prod-6",
-    name: "Garlic Bulbs",
-    category_id: "cat-produce",
-    unit: "pieces",
-    current_quantity: 4,
-    weekly_usage: 2.0,
-    low_stock_threshold: 2.0,
+    current_quantity: 2.0,
+    weekly_usage: 1.0,
+    low_stock_threshold: 0.5,
     status: "in_stock",
-    icon: "Sparkles",
-    notes: "4 whole heads in dry pantry"
+    icon: "Apple",
+    notes: "Crisp eating apples"
   },
 
-  // Dairy & Refrigerated
+  // 2. Dairy & Breakfast (5 products)
   {
     id: "item-dairy-1",
-    name: "Whole Organic Milk",
+    name: "Fresh Whole Milk",
     category_id: "cat-dairy",
-    unit: "litres",
-    current_quantity: 0.6,
-    weekly_usage: 3.0,
-    low_stock_threshold: 1.0,
-    status: "low",
+    unit: "liters",
+    current_quantity: 0,
+    weekly_usage: 4.0,
+    low_stock_threshold: 2.0,
+    status: "out_of_stock",
     icon: "Milk",
-    notes: "Only 600ml remaining"
+    notes: "Fresh whole milk"
   },
   {
     id: "item-dairy-2",
-    name: "Greek Yogurt (Plain)",
+    name: "Farm Fresh Eggs",
     category_id: "cat-dairy",
-    unit: "kg",
-    current_quantity: 1.0,
-    weekly_usage: 0.8,
-    low_stock_threshold: 0.4,
-    status: "in_stock",
-    icon: "CupSoda",
-    notes: "High protein breakfast staple"
+    unit: "pieces",
+    current_quantity: 4,
+    weekly_usage: 12.0,
+    low_stock_threshold: 6.0,
+    status: "low",
+    icon: "Egg",
+    notes: "Brown eggs"
   },
   {
     id: "item-dairy-3",
-    name: "Large Farm Eggs",
+    name: "Plain Yogurt",
     category_id: "cat-dairy",
-    unit: "pieces",
-    current_quantity: 0,
-    weekly_usage: 12.0,
-    low_stock_threshold: 4.0,
-    status: "out_of_stock",
-    icon: "Egg",
-    notes: "Out of eggs! Urgent for breakfast"
+    unit: "kg",
+    current_quantity: 1.5,
+    weekly_usage: 1.0,
+    low_stock_threshold: 0.5,
+    status: "in_stock",
+    icon: "Utensils",
+    notes: "Natural plain yogurt"
   },
   {
     id: "item-dairy-4",
-    name: "Unsalted Butter",
+    name: "Cheddar Cheese",
     category_id: "cat-dairy",
     unit: "packs",
     current_quantity: 2.0,
     weekly_usage: 0.5,
     low_stock_threshold: 1.0,
     status: "in_stock",
-    icon: "Cookie",
-    notes: "Grass-fed butter sticks"
+    icon: "Package",
+    notes: "Sliced cheddar cheese"
   },
   {
     id: "item-dairy-5",
-    name: "Sharp Cheddar Block",
+    name: "Black Tea",
     category_id: "cat-dairy",
-    unit: "grams",
-    current_quantity: 150,
-    weekly_usage: 400,
-    low_stock_threshold: 200,
-    status: "low",
-    icon: "Pizza",
-    notes: "Only a small wedge left"
+    unit: "packs",
+    current_quantity: 1.0,
+    weekly_usage: 0.25,
+    low_stock_threshold: 0.5,
+    status: "in_stock",
+    icon: "Coffee",
+    notes: "Premium black tea blend"
   },
 
-  // Meat & Seafood
+  // 3. Meat & Seafood (5 products)
   {
     id: "item-meat-1",
-    name: "Chicken Breasts",
+    name: "Chicken Breast",
     category_id: "cat-meat",
     unit: "kg",
-    current_quantity: 2.2,
-    weekly_usage: 1.8,
+    current_quantity: 0,
+    weekly_usage: 2.0,
     low_stock_threshold: 1.0,
-    status: "in_stock",
-    icon: "Beef",
-    notes: "In freezer zip-lock packs"
+    status: "out_of_stock",
+    icon: "Drumstick",
+    notes: "Skinless boneless chicken breast"
   },
   {
     id: "item-meat-2",
-    name: "Atlantic Salmon Fillets",
-    category_id: "cat-meat",
-    unit: "pieces",
-    current_quantity: 0,
-    weekly_usage: 4.0,
-    low_stock_threshold: 2.0,
-    status: "out_of_stock",
-    icon: "Fish",
-    notes: "Need for Thursday dinner"
-  },
-  {
-    id: "item-meat-3",
-    name: "Lean Ground Beef (90/10)",
+    name: "Beef Mince",
     category_id: "cat-meat",
     unit: "kg",
     current_quantity: 0.5,
@@ -217,316 +180,185 @@ export const initialItems = [
     low_stock_threshold: 1.0,
     status: "low",
     icon: "Beef",
-    notes: "Defrosting single small pack"
+    notes: "Fresh minced beef"
   },
   {
-    id: "item-meat-4",
-    name: "Organic Firm Tofu",
+    id: "item-meat-3",
+    name: "Salmon Fillets",
     category_id: "cat-meat",
-    unit: "packs",
-    current_quantity: 3,
-    weekly_usage: 1.5,
-    low_stock_threshold: 1.0,
-    status: "in_stock",
-    icon: "Layers",
-    notes: "Plant-based protein backup"
-  },
-
-  // Bakery & Grains
-  {
-    id: "item-bakery-1",
-    name: "Artisan Sourdough Loaf",
-    category_id: "cat-bakery",
-    unit: "loaves",
-    current_quantity: 0.3,
-    weekly_usage: 1.5,
-    low_stock_threshold: 0.5,
-    status: "low",
-    icon: "Wheat",
-    notes: "Last few slices in breadbox"
-  },
-  {
-    id: "item-bakery-2",
-    name: "Organic Brown Rice",
-    category_id: "cat-bakery",
-    unit: "kg",
+    unit: "pieces",
     current_quantity: 4.0,
-    weekly_usage: 1.0,
-    low_stock_threshold: 1.5,
-    status: "in_stock",
-    icon: "Wheat",
-    notes: "Large airtight container"
-  },
-  {
-    id: "item-bakery-3",
-    name: "Rolled Oats",
-    category_id: "cat-bakery",
-    unit: "kg",
-    current_quantity: 1.8,
-    weekly_usage: 0.8,
-    low_stock_threshold: 0.6,
-    status: "in_stock",
-    icon: "Cookie",
-    notes: "For morning oatmeal & baking"
-  },
-  {
-    id: "item-bakery-4",
-    name: "Penne Rigate Pasta",
-    category_id: "cat-bakery",
-    unit: "packs",
-    current_quantity: 0,
-    weekly_usage: 2.0,
-    low_stock_threshold: 1.0,
-    status: "out_of_stock",
-    icon: "Utensils",
-    notes: "Used up for last night's dinner"
-  },
-
-  // Canned & Pantry
-  {
-    id: "item-can-1",
-    name: "Extra Virgin Olive Oil",
-    category_id: "cat-canned",
-    unit: "litres",
-    current_quantity: 0.2,
-    weekly_usage: 0.5,
-    low_stock_threshold: 0.3,
-    status: "low",
-    icon: "Droplet",
-    notes: "Nearly empty cooking oil bottle"
-  },
-  {
-    id: "item-can-2",
-    name: "Organic Chickpeas",
-    category_id: "cat-canned",
-    unit: "cans",
-    current_quantity: 6,
     weekly_usage: 2.0,
     low_stock_threshold: 2.0,
     status: "in_stock",
-    icon: "Package",
-    notes: "Great for hummus and curries"
+    icon: "Fish",
+    notes: "Fresh salmon portions"
   },
   {
-    id: "item-can-3",
-    name: "Tomato Paste",
-    category_id: "cat-canned",
-    unit: "cans",
-    current_quantity: 3,
+    id: "item-meat-4",
+    name: "Boneless Mutton",
+    category_id: "cat-meat",
+    unit: "kg",
+    current_quantity: 2.0,
     weekly_usage: 1.0,
-    low_stock_threshold: 1.0,
+    low_stock_threshold: 0.5,
     status: "in_stock",
-    icon: "Package",
-    notes: "Double concentrated paste tubes"
+    icon: "Beef",
+    notes: "Tender boneless mutton"
   },
   {
-    id: "item-can-4",
-    name: "Coconut Milk (Unsweetened)",
-    category_id: "cat-canned",
-    unit: "cans",
-    current_quantity: 0,
-    weekly_usage: 2.0,
-    low_stock_threshold: 1.0,
-    status: "out_of_stock",
-    icon: "Package",
-    notes: "Need for Thai curry recipe"
+    id: "item-meat-5",
+    name: "Jumbo Prawns",
+    category_id: "cat-meat",
+    unit: "kg",
+    current_quantity: 1.0,
+    weekly_usage: 0.5,
+    low_stock_threshold: 0.5,
+    status: "in_stock",
+    icon: "Fish",
+    notes: "Cleaned jumbo prawns"
   },
 
-  // Beverages & Snacks
+  // 4. Pantry Staples & Grains (5 products)
   {
-    id: "item-bev-1",
-    name: "Medium Roast Whole Coffee Beans",
-    category_id: "cat-beverages",
+    id: "item-pantry-1",
+    name: "Basmati Rice",
+    category_id: "cat-pantry",
     unit: "kg",
-    current_quantity: 0.2,
-    weekly_usage: 0.5,
-    low_stock_threshold: 0.3,
-    status: "low",
-    icon: "Coffee",
-    notes: "Down to the bottom of the bag!"
+    current_quantity: 0,
+    weekly_usage: 2.5,
+    low_stock_threshold: 2.0,
+    status: "out_of_stock",
+    icon: "Wheat",
+    notes: "Premium aged long-grain basmati"
   },
   {
-    id: "item-bev-2",
-    name: "Japanese Green Tea Bags",
-    category_id: "cat-beverages",
-    unit: "boxes",
-    current_quantity: 2,
-    weekly_usage: 0.5,
+    id: "item-pantry-2",
+    name: "Cooking Oil",
+    category_id: "cat-pantry",
+    unit: "liters",
+    current_quantity: 0.5,
+    weekly_usage: 1.0,
     low_stock_threshold: 1.0,
-    status: "in_stock",
-    icon: "Coffee",
-    notes: "Sencha green tea 50ct"
+    status: "low",
+    icon: "Droplets",
+    notes: "Vegetable cooking oil"
   },
   {
-    id: "item-bev-3",
-    name: "Dark Chocolate 72%",
-    category_id: "cat-beverages",
-    unit: "bars",
-    current_quantity: 1,
+    id: "item-pantry-3",
+    name: "All-Purpose Flour",
+    category_id: "cat-pantry",
+    unit: "kg",
+    current_quantity: 5.0,
     weekly_usage: 2.0,
-    low_stock_threshold: 1.0,
-    status: "low",
-    icon: "Cookie",
-    notes: "Evening treat"
+    low_stock_threshold: 2.0,
+    status: "in_stock",
+    icon: "Wheat",
+    notes: "White wheat flour"
   },
   {
-    id: "item-bev-4",
-    name: "Sparkling Lime Water",
-    category_id: "cat-beverages",
-    unit: "cans",
-    current_quantity: 12,
-    weekly_usage: 6.0,
-    low_stock_threshold: 4.0,
+    id: "item-pantry-4",
+    name: "Iodised Table Salt",
+    category_id: "cat-pantry",
+    unit: "kg",
+    current_quantity: 1.0,
+    weekly_usage: 0.2,
+    low_stock_threshold: 0.2,
     status: "in_stock",
-    icon: "CupSoda",
-    notes: "Full 12-pack in pantry"
+    icon: "Sparkles",
+    notes: "Refined table salt"
+  },
+  {
+    id: "item-pantry-5",
+    name: "White Sugar",
+    category_id: "cat-pantry",
+    unit: "kg",
+    current_quantity: 2.5,
+    weekly_usage: 0.8,
+    low_stock_threshold: 1.0,
+    status: "in_stock",
+    icon: "Cookie",
+    notes: "Granulated white sugar"
   }
 ];
 
 export const initialAlerts = [
   {
-    id: "alert-1",
-    item_id: "item-prod-3",
-    item_name: "Ripe Bananas",
+    id: "alert-prod-1",
+    item_id: "item-prod-1",
+    item_name: "Yellow Onions",
     type: "out_of_stock",
-    message: "Ripe Bananas is out of stock! Added to your shopping list.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+    message: "Yellow Onions is completely out of stock!",
+    timestamp: new Date().toISOString(),
     read: false
   },
   {
-    id: "alert-2",
-    item_id: "item-dairy-3",
-    item_name: "Large Farm Eggs",
-    type: "out_of_stock",
-    message: "Large Farm Eggs reached 0 pieces. Restock needed immediately.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    read: false
-  },
-  {
-    id: "alert-3",
-    item_id: "item-meat-2",
-    item_name: "Atlantic Salmon Fillets",
-    type: "out_of_stock",
-    message: "Atlantic Salmon Fillets is out of stock.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    read: false
-  },
-  {
-    id: "alert-4",
+    id: "alert-dairy-1",
     item_id: "item-dairy-1",
-    item_name: "Whole Organic Milk",
-    type: "low_stock",
-    message: "Whole Organic Milk is low (0.6 litres remaining). Est. 1.4 days left.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-    read: true
+    item_name: "Fresh Whole Milk",
+    type: "out_of_stock",
+    message: "Fresh Whole Milk is out of stock!",
+    timestamp: new Date().toISOString(),
+    read: false
   },
   {
-    id: "alert-5",
-    item_id: "item-bev-1",
-    item_name: "Medium Roast Whole Coffee Beans",
-    type: "low_stock",
-    message: "Medium Roast Whole Coffee Beans is below 0.3 kg threshold.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(),
-    read: true
-  },
-  {
-    id: "alert-6",
-    item_id: "item-dairy-4",
-    item_name: "Unsalted Butter",
-    type: "restocked",
-    message: "Unsalted Butter was restocked to 2.0 packs.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 28).toISOString(),
-    read: true
+    id: "alert-pantry-1",
+    item_id: "item-pantry-1",
+    item_name: "Basmati Rice",
+    type: "out_of_stock",
+    message: "Basmati Rice is out of stock!",
+    timestamp: new Date().toISOString(),
+    read: false
   }
 ];
 
 export const initialSettings = {
   id: "default_settings",
   profile: {
-    name: "Alex Morgan",
-    email: "alex@smartkitchen.io",
-    household_size: 3,
-    kitchen_name: "Main Family Kitchen"
+    name: "Kitchen Chef",
+    email: "chef@smartkitchen.app",
+    household_size: 3
   },
   notifications: {
     enabled: true,
     low_stock_alerts: true,
     out_of_stock_alerts: true,
-    restock_alerts: true,
-    email_summary: false,
-    sound_enabled: true
+    restock_alerts: true
   },
-  checked_shopping_ids: ["item-meat-2"]
+  checked_shopping_ids: []
 };
-
-// SHA-256 hash of passwords (ski_salt_2024 suffix)
-// admin123  -> pre-computed
-// user123   -> pre-computed
-const ADMIN_HASH = 'b7e3e5f5a6c84f7c4a2d22b5a1f9c4e0a8d1b6c3f7e2a4b9c0d5e8f1a2b3c4d5'; // placeholder, seeded correctly at runtime
-
-// We store actual hashes here so seeding works without importing crypto in seedData
-// These are SHA-256('admin123' + 'ski_salt_2024') and SHA-256('user123' + 'ski_salt_2024')
-import crypto from 'crypto';
-const hash = (p) => crypto.createHash('sha256').update(p + 'ski_salt_2024').digest('hex');
 
 export const initialUsers = [
   {
-    id: 'user-admin-001',
-    name: 'Bilal Ahmad (Admin)',
-    email: '24p1fsmb028@concordia.edu.pk',
-    password_hash: hash('bilal'),
-    password_plain: 'bilal',
-    role: 'admin',
-    phone: '03270220077',
-    kitchen_name: 'Admin Control Center',
-    household_size: 1,
-    status: 'active',
-    is_online: true,
-    last_login: new Date().toISOString()
-  },
-  {
-    id: 'user-demo-001',
-    name: 'Demo Customer',
-    email: 'customer@smartkitchen.io',
-    password_hash: hash('user123'),
-    password_plain: 'user123',
-    role: 'customer',
-    phone: '+92 321 9876543',
-    kitchen_name: 'Demo Family Kitchen',
+    id: "user-admin-001",
+    name: "Bilal Ahmad",
+    email: "24p1fsmb028@concordia.edu.pk",
+    password_hash: "ba5b8e90e722880c98f86f780824bfa1e028b05fc69837fb2f00d23f382a9332",
+    password_plain: "bilal",
+    role: "admin",
+    phone: "03270220077",
+    kitchen_name: "Master Control Kitchen",
     household_size: 4,
-    status: 'active',
+    status: "active",
     is_online: false,
-    last_login: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-    last_logout: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
-  }
-];
-
-export const initialAccountRequests = [
-  {
-    id: 'req-sample-001',
-    name: 'Sarah Johnson',
-    email: 'sarah.johnson@example.com',
-    password_hash: hash('sarah2024'),
-    password_plain: 'sarah2024',
-    phone: '+1 555-0101',
-    kitchen_name: 'Johnson Household',
-    household_size: 5,
-    notes: 'I manage a large family and want to track our grocery stock efficiently.',
-    status: 'pending',
-    submitted_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    last_login: null,
+    last_logout: null
   },
   {
-    id: 'req-sample-002',
-    name: 'Ahmed Al-Rashid',
-    email: 'ahmed.rashid@example.com',
-    password_hash: hash('ahmed2024'),
-    password_plain: 'ahmed2024',
-    phone: '+92 300 1234567',
-    kitchen_name: 'Al-Rashid Kitchen',
-    household_size: 6,
-    notes: 'Running a family guesthouse and need proper inventory tracking for our kitchen.',
-    status: 'pending',
-    submitted_at: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    id: "user-cust-001",
+    name: "Demo Customer",
+    email: "customer@smartkitchen.io",
+    password_hash: "28e7529ea4b470bf2f9ee8ff19ca71a938c6426f8d07019f39df78df804791a8",
+    password_plain: "user123",
+    role: "customer",
+    phone: "03001234567",
+    kitchen_name: "Demo Family Kitchen",
+    household_size: 3,
+    status: "active",
+    is_online: false,
+    last_login: null,
+    last_logout: null
   }
 ];
 
+export const initialAccountRequests = [];
