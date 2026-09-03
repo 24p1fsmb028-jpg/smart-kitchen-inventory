@@ -26,22 +26,25 @@ if (!fs.existsSync(DATA_DIR)) {
 let pgPool = null;
 let usePostgres = false;
 
-// Attempt PostgreSQL / Supabase Connection if configured
-if (process.env.DATABASE_URL || process.env.PGHOST) {
+// Attempt PostgreSQL / Supabase Connection (with automatic fallback to Supabase Pooler)
+const SUPABASE_DEFAULT_URL = 'postgresql://postgres.nqmptcvfloejromioqog:8J0Zqux0DwC1hq2C@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres';
+const effectiveDbUrl = process.env.DATABASE_URL || SUPABASE_DEFAULT_URL;
+
+if (effectiveDbUrl || process.env.PGHOST) {
   try {
-    const isSupabase = process.env.DATABASE_URL && (
-      process.env.DATABASE_URL.includes('supabase.co') ||
-      process.env.DATABASE_URL.includes('supabase.com') ||
-      process.env.DATABASE_URL.includes('pooler.supabase.com')
+    const isSupabase = effectiveDbUrl && (
+      effectiveDbUrl.includes('supabase.co') ||
+      effectiveDbUrl.includes('supabase.com') ||
+      effectiveDbUrl.includes('pooler.supabase.com')
     );
 
-    const sslConfig = isSupabase || process.env.NODE_ENV === 'production' || (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('sslmode=require'))
+    const sslConfig = isSupabase || process.env.NODE_ENV === 'production' || (effectiveDbUrl && effectiveDbUrl.includes('sslmode=require'))
       ? { rejectUnauthorized: false }
       : false;
 
-    const config = process.env.DATABASE_URL
+    const config = effectiveDbUrl
       ? {
-          connectionString: process.env.DATABASE_URL,
+          connectionString: effectiveDbUrl,
           ssl: sslConfig
         }
       : {
@@ -112,8 +115,15 @@ export const initDB = async () => {
   if (pgPool) {
     try {
       const client = await pgPool.connect();
-      const schemaSQL = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf-8');
-      await client.query(schemaSQL);
+      try {
+        const schemaPath = path.join(__dirname, 'schema.sql');
+        if (fs.existsSync(schemaPath)) {
+          const schemaSQL = fs.readFileSync(schemaPath, 'utf-8');
+          await client.query(schemaSQL);
+        }
+      } catch (schemaErr) {
+        console.warn('Schema check notice:', schemaErr.message);
+      }
       usePostgres = true;
 
       // Check if categories are empty, auto-seed if needed
