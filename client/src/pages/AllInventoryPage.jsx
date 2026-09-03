@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Boxes,
@@ -22,12 +22,17 @@ export default function AllInventoryPage() {
     categories,
     items,
     loading,
+    refreshAll,
     addItem,
     updateItem,
     adjustQuantity,
     restockItem,
     deleteItem
   } = useInventory();
+
+  useEffect(() => {
+    refreshAll();
+  }, [refreshAll]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');

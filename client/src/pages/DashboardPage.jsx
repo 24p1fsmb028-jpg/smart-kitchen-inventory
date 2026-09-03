@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Boxes,
@@ -9,7 +9,8 @@ import {
   ArrowRight,
   TrendingDown,
   Sparkles,
-  ShoppingBag
+  ShoppingBag,
+  RefreshCw
 } from 'lucide-react';
 import { useInventory } from '../context/InventoryContext';
 import StatCard from '../components/common/StatCard';
@@ -26,6 +27,7 @@ export default function DashboardPage() {
     items,
     stats,
     loading,
+    refreshAll,
     addItem,
     updateItem,
     adjustQuantity,
@@ -35,6 +37,11 @@ export default function DashboardPage() {
   } = useInventory();
 
   const navigate = useNavigate();
+
+  // Always refresh inventory data when dashboard mounts
+  useEffect(() => {
+    refreshAll();
+  }, [refreshAll]);
 
   // Modals state
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);

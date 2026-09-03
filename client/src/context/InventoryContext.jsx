@@ -24,17 +24,23 @@ export function InventoryProvider({ children }) {
     }
     try {
       setLoading(true);
-      const [catsRes, itemsRes, statsRes] = await Promise.all([
+      const [catsRes, itemsRes, statsRes] = await Promise.allSettled([
         api.getCategories(),
         api.getItems(),
         api.getStats()
       ]);
-      setCategories(catsRes.data || []);
-      setItems(itemsRes.data || []);
-      setStats(statsRes.data || null);
+
+      if (catsRes.status === 'fulfilled' && catsRes.value?.data) {
+        setCategories(catsRes.value.data);
+      }
+      if (itemsRes.status === 'fulfilled' && itemsRes.value?.data) {
+        setItems(itemsRes.value.data);
+      }
+      if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
+        setStats(statsRes.value.data);
+      }
     } catch (err) {
       console.error('Failed to load inventory data:', err);
-      toastRef.current?.error('Failed to load inventory data. Check connection.');
     } finally {
       setLoading(false);
     }

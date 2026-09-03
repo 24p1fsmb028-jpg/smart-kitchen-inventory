@@ -5,14 +5,13 @@
 const API_BASE = '/api';
 
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE}${endpoint}`;
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {})
   };
 
-  try {
-    const res = await fetch(url, { ...options, headers });
+  const tryFetch = async (baseUrl) => {
+    const res = await fetch(`${baseUrl}${endpoint}`, { ...options, headers });
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       throw new Error(`API returned unexpected format (${res.status}).`);
@@ -22,9 +21,20 @@ async function request(endpoint, options = {}) {
       throw new Error(json.error || json.message || `Request failed with status ${res.status}`);
     }
     return json;
+  };
+
+  try {
+    return await tryFetch('/api');
   } catch (err) {
-    console.warn(`API [${options.method || 'GET'} ${endpoint}]:`, err.message);
-    throw err;
+    try {
+      const fallbackHost = typeof window !== 'undefined' && window.location.hostname
+        ? window.location.hostname
+        : 'localhost';
+      return await tryFetch(`http://${fallbackHost}:5000/api`);
+    } catch (fallbackErr) {
+      console.warn(`API [${options.method || 'GET'} ${endpoint}]:`, err.message);
+      throw err;
+    }
   }
 }
 

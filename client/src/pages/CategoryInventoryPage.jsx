@@ -22,12 +22,17 @@ export default function CategoryInventoryPage() {
     categories,
     items,
     loading,
+    refreshAll,
     addItem,
     updateItem,
     adjustQuantity,
     restockItem,
     deleteItem
   } = useInventory();
+
+  useEffect(() => {
+    refreshAll();
+  }, [refreshAll]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'in_stock' | 'low' | 'out_of_stock'
