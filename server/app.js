@@ -1,6 +1,14 @@
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Load .env FIRST before any other module reads process.env
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '.env') });
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { initDB } from './db/db.js';
 import categoriesRouter from './routes/categories.js';
 import itemsRouter from './routes/items.js';
@@ -11,8 +19,6 @@ import statsRouter from './routes/stats.js';
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
 import purchaseScannerRouter from './routes/purchaseScanner.js';
-
-dotenv.config();
 
 const app = express();
 

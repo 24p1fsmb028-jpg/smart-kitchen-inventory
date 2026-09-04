@@ -1,7 +1,11 @@
 /**
  * Server-Side AI Vision Service for Shopping List Image / Screenshot Scanning (Mode B)
  *
- * Securely processes image buffers using Google Gemini Vision or OpenAI Vision APIs.
+ * Supports three AI providers — auto-detected from your AI_API_KEY prefix:
+ *   - Clarifai  → key starts with "AQ."    (your current key)
+ *   - Gemini    → key starts with "AIza"   (Google AI Studio — free)
+ *   - OpenAI    → key starts with "sk-"    (OpenAI platform)
+ *
  * Never exposes API keys to client-side code.
  */
 
@@ -14,7 +18,8 @@ export async function scanShoppingListImageWithAI({
 
   if (!apiKey) {
     throw new Error(
-      'AI Vision key is not configured on the server. Please add AI_API_KEY or GEMINI_API_KEY to your server environment variables, or upload the original interactive PDF.'
+      'AI Vision key is not configured on the server. ' +
+      'Please add AI_API_KEY to your server/.env file, then restart the server.'
     );
   }
 
@@ -24,7 +29,9 @@ export async function scanShoppingListImageWithAI({
   let contextItemsText = '';
   if (candidateLists.length > 0) {
     contextItemsText = candidateLists.map(l => {
-      const itemStrs = (l.items || []).map(i => `  - "${i.item_name}" (Target Qty: ${i.quantity} ${i.unit})`).join('\n');
+      const itemStrs = (l.items || []).map(i =>
+        `  - "${i.item_name}" (Target Qty: ${i.quantity} ${i.unit})`
+      ).join('\n');
       return `Shopping List ID: "${l.id}":\n${itemStrs}`;
     }).join('\n\n');
   }
@@ -58,18 +65,91 @@ JSON SCHEMA:
   const userPrompt = `Analyze this shopping list image and return the checked items in strict JSON format.
 ${contextItemsText ? `\nKNOWN RECENT SHOPPING LISTS FOR REFERENCE:\n${contextItemsText}\n` : ''}`;
 
-  // Determine provider: Gemini vs OpenAI
-  const isGemini = apiKey.startsWith('AIza') || process.env.GEMINI_API_KEY || !process.env.OPENAI_API_KEY;
-
-  if (isGemini) {
+  // Auto-detect provider from API key prefix
+  if (apiKey.startsWith('AQ.')) {
+    // Clarifai Personal Access Token
+    return await callClarifaiVision({ apiKey, base64Data, mimeType, systemPrompt, userPrompt });
+  } else if (apiKey.startsWith('AIza') || process.env.GEMINI_API_KEY) {
+    // Google Gemini
     return await callGeminiVision({ apiKey, base64Data, mimeType, systemPrompt, userPrompt });
-  } else {
+  } else if (apiKey.startsWith('sk-') || process.env.OPENAI_API_KEY) {
+    // OpenAI
     return await callOpenAIVision({ apiKey, base64Data, mimeType, systemPrompt, userPrompt });
+  } else {
+    throw new Error(
+      'Unrecognized AI API key format. Supported: Clarifai (AQ.), Gemini (AIza), OpenAI (sk-).'
+    );
+  }
+}
+
+/**
+ * Call Clarifai Vision API (supports AQ. Personal Access Tokens)
+ * Uses GPT-4o multimodal model hosted on Clarifai platform.
+ */
+async function callClarifaiVision({ apiKey, base64Data, mimeType, systemPrompt, userPrompt }) {
+  // Clarifai hosts GPT-4o — supports image + text in one request
+  const url = 'https://api.clarifai.com/v2/users/openai/apps/chat-completion/models/gpt-4o/outputs';
+
+  const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+
+  const requestBody = {
+    inputs: [
+      {
+        data: {
+          text: {
+            raw: fullPrompt
+          },
+          image: {
+            base64: base64Data
+          }
+        }
+      }
+    ]
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('Clarifai API error:', res.status, errorText);
+    throw new Error(
+      `AI Vision service error (${res.status}): Couldn't scan the image. ` +
+      'Please check your Clarifai API key or try uploading the original PDF.'
+    );
+  }
+
+  const data = await res.json();
+
+  // Clarifai returns output inside outputs[0].data.text.raw
+  const textOutput = data?.outputs?.[0]?.data?.text?.raw;
+
+  if (!textOutput) {
+    console.error('Clarifai unexpected response shape:', JSON.stringify(data));
+    throw new Error("Couldn't scan the image. Please try a clearer photo.");
+  }
+
+  try {
+    const cleanJson = textOutput
+      .replace(/^```json\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim();
+    return JSON.parse(cleanJson);
+  } catch (parseErr) {
+    console.error('Failed to parse Clarifai output as JSON:', textOutput, parseErr);
+    throw new Error('AI Vision returned an unexpected format. Please try a clearer photo or upload the PDF.');
   }
 }
 
 /**
  * Call Google Gemini Vision REST API (zero extra dependencies)
+ * Key format: AIzaSy...
  */
 async function callGeminiVision({ apiKey, base64Data, mimeType, systemPrompt, userPrompt }) {
   const model = 'gemini-1.5-flash';
@@ -126,6 +206,7 @@ async function callGeminiVision({ apiKey, base64Data, mimeType, systemPrompt, us
 
 /**
  * Call OpenAI Vision REST API (fallback if OPENAI_API_KEY is used)
+ * Key format: sk-...
  */
 async function callOpenAIVision({ apiKey, base64Data, mimeType, systemPrompt, userPrompt }) {
   const url = 'https://api.openai.com/v1/chat/completions';
