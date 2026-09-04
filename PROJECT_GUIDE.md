@@ -13,8 +13,9 @@
 7. [Admin Control Center (Deep Dive)](#7-admin-control-center-deep-dive)
 8. [Business Logic & Mathematical Models](#8-business-logic--mathematical-models)
 9. [Local Development & Deployment Guide](#9-local-development--deployment-guide)
-10. [Critical Rules & Guidelines for Future AI Assistants](#10-critical-rules--guidelines-for-future-ai-assistants)
-11. [Developer Playbook & Recipes](#11-developer-playbook--recipes)
+10. [Vercel Production Deployment](#10-vercel-production-deployment)
+11. [Critical Rules & Guidelines for Future AI Assistants](#11-critical-rules--guidelines-for-future-ai-assistants)
+12. [Developer Playbook & Recipes](#12-developer-playbook--recipes)
 
 ---
 
@@ -28,10 +29,11 @@
 | **Frontend** | React 18 (Vite) | Single Page Application running on port `3000` |
 | **Styling** | Tailwind CSS + Vanilla CSS | Dark theme by default, modern glassmorphic cards |
 | **Icons** | Lucide React | Modern feather-inspired SVG icon system |
-| **Backend** | Node.js (Express) | RESTful API server running on port `5000` |
+| **Backend** | Node.js (Express) | RESTful API server running on port `5000`; Vercel Serverless Functions on production |
 | **Database** | Supabase (PostgreSQL) | Remote managed PostgreSQL pooler in Tokyo (`ap-northeast-1`) |
 | **State Management** | React Context API | `AuthContext` with persistent `localStorage` session |
-| **Deployment / Repo** | GitHub | `https://github.com/24p1fsmb028-jpg/smart-kitchen-inventory` (branch: `main`) |
+| **Source Repo** | GitHub | `https://github.com/24p1fsmb028-jpg/smart-kitchen-inventory` (branch: `main`) |
+| **Live Deployment** | Vercel | `https://smart-kitchen-inventory-lyart.vercel.app` — auto-deploys from GitHub `main` |
 
 ---
 
@@ -80,6 +82,10 @@ const hashPassword = (password) =>
 
 ```
 e:\react-apps\
+├── api/                                        <- Vercel Serverless Function Entrypoints
+│   ├── index.js                                <- Primary handler: exports Express app directly
+│   └── [...path].js                            <- Catch-all handler for nested API routes
+│
 ├── client/                                     <- React 18 + Vite Frontend Application
 │   ├── index.html                              <- HTML5 Shell with meta tags
 │   ├── vite.config.js                          <- Vite config (port 3000, proxy /api -> localhost:5000)
@@ -88,9 +94,12 @@ e:\react-apps\
 │       ├── main.jsx                            <- React DOM root with BrowserRouter & AuthProvider
 │       ├── App.jsx                             <- Master router with PrivateRoute & AdminRoute
 │       ├── context/
-│       │   └── AuthContext.jsx                 <- Auth provider, session restore, login, logout, submitRequest
+│       │   ├── AuthContext.jsx                 <- Auth provider, session restore, login, logout, submitRequest
+│       │   ├── InventoryContext.jsx            <- Global inventory state: categories, items, stats, CRUD actions
+│       │   └── ToastContext.jsx                <- Toast notification system
 │       ├── services/
-│       │   └── api.js                          <- Centralized client fetch wrapper with error handling
+│       │   ├── api.js                          <- Centralized client fetch wrapper with error handling
+│       │   └── superstorePdfService.js         <- PDF generation for shopping lists (Pakistani superstore format)
 │       ├── pages/
 │       │   ├── PublicShowcasePage.jsx          <- Landing page (/) with features, demo card, and WhatsApp CTA
 │       │   ├── LoginPage.jsx                   <- Clean login page (/login) with email and password form
@@ -104,19 +113,28 @@ e:\react-apps\
 │       └── components/
 │           ├── auth/
 │           │   └── RegisterRequestModal.jsx    <- Signup request modal with WhatsApp expediting
+│           ├── common/
+│           │   ├── StatCard.jsx                <- Dashboard stat card widget
+│           │   ├── CategoryTile.jsx            <- Category grid card with item count
+│           │   ├── ItemRow.jsx                 <- Inventory row with restock tick + status pill
+│           │   ├── ItemModal.jsx               <- Add/edit item modal form
+│           │   ├── CategoryModal.jsx           <- Add/edit category modal form
+│           │   └── DeleteConfirmModal.jsx      <- Deletion confirmation dialog
 │           └── layout/
 │               ├── Navbar.jsx                  <- Top navbar with active kitchen, role tag, and logout
 │               ├── Sidebar.jsx                 <- Desktop left sidebar with role-aware routes
-│               └── MobileNav.jsx               <- Bottom fixed mobile navigation bar
+│               ├── MobileNav.jsx               <- Bottom fixed mobile navigation bar
+│               └── AlertBanner.jsx             <- Contextual alert banner for low/out-of-stock counts
 │
 ├── server/                                     <- Node.js + Express Backend Server
-│   ├── index.js                                <- Server entry: middleware, route mounting, port 5000
+│   ├── app.js                                  <- Express app factory: middlewares, routes, DB middleware
+│   ├── index.js                                <- Local server entry: imports app.js and calls listen(5000)
 │   ├── .env                                    <- Secret environment variables (ignored by Git)
 │   ├── .env.example                            <- Reference configuration template
 │   ├── db/
 │   │   ├── schema.sql                          <- PostgreSQL schema with all 7 tables and indexes
 │   │   ├── seedData.js                         <- Realistic initial categories, items, and users
-│   │   └── db.js                               <- Database access client with Supabase pool
+│   │   └── db.js                               <- Database access client with Supabase pool + FileStore fallback
 │   └── routes/
 │       ├── auth.js                             <- /api/auth (login, logout, register-request, status)
 │       ├── admin.js                            <- /api/admin (metrics, activity, requests, users, approval)
@@ -127,6 +145,8 @@ e:\react-apps\
 │       ├── settings.js                         <- /api/settings (household & notifications)
 │       └── stats.js                            <- /api/stats (aggregate telemetry)
 │
+├── package.json                                <- Root package: server deps + build script for Vercel
+├── vercel.json                                 <- Vercel config: API rewrites + SPA fallback routing
 ├── PROJECT_GUIDE.md                            <- Master universal architecture document (this file)
 └── .gitignore                                  <- Protects node_modules, dist, .env, and logs
 ```
@@ -377,27 +397,110 @@ function calculateDaysRemaining(currentQuantity, weeklyUsage) {
 ## 9. Local Development & Deployment Guide
 
 ### Running Locally
-1. **Start Backend Server (Port 5000):**
+1. **Install all dependencies (root + client):**
    ```bash
-   node server/index.js
+   npm install
    ```
-2. **Start Frontend Dev Server (Port 3000):**
+2. **Start both servers simultaneously:**
    ```bash
+   npm run dev
+   ```
+   - Backend: `http://localhost:5000`
+   - Frontend: `http://localhost:3000`
+3. **Or start them separately:**
+   ```bash
+   # Backend only
+   node server/index.js
+
+   # Frontend only
    npm --prefix client run dev -- --port 3000 --host
    ```
-3. **Build Frontend Production Bundle:**
+4. **Build production bundle locally:**
    ```bash
-   npm --prefix client run build
+   npm run build
    ```
 
-### URLs
+### Environment Variables (`server/.env`)
+```env
+PORT=5000
+NODE_ENV=development
+DATABASE_URL=postgresql://postgres.nqmptcvfloejromioqog:8J0Zqux0DwC1hq2C@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres
+SUPABASE_URL=https://nqmptcvfloejromioqog.supabase.co
+SUPABASE_ANON_KEY=eyJhbGci...
+```
+
+### Local URLs
 - **Frontend App:** `http://localhost:3000`
 - **Backend API:** `http://localhost:5000/api`
 - **Health Check:** `http://localhost:5000/api/health`
 
 ---
 
-## 10. Critical Rules & Guidelines for Future AI Assistants
+## 10. Vercel Production Deployment
+
+### Architecture on Vercel
+
+Vercel hosts both the static frontend and a **Serverless Function** for the backend in the same repo.
+
+```
+Request to vercel.app/api/categories
+    → vercel.json rewrite: /api/(.*) → api/index.js
+    → api/index.js exports Express app
+    → server/app.js handles the route with DB middleware
+    → server/db/db.js connects to Supabase PostgreSQL pooler
+    → Returns JSON response
+```
+
+### Key Files for Vercel
+
+| File | Purpose |
+|---|---|
+| `vercel.json` | Routes `/api/*` to serverless function; routes everything else to `index.html` |
+| `api/index.js` | Primary Vercel entry point — exports the Express `app` |
+| `api/[...path].js` | Catch-all for all nested `/api/**` sub-routes |
+| `server/app.js` | Express app factory (shared by Vercel & local `server/index.js`) |
+| `package.json` (root) | Contains server deps (`express`, `pg`, `cors`) so Vercel installs them |
+
+### `vercel.json` Configuration
+```json
+{
+  "version": 2,
+  "buildCommand": "npm --prefix client run build",
+  "outputDirectory": "client/dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/(.*)",    "destination": "/index.html" }
+  ]
+}
+```
+
+### Vercel Environment Variables
+Set these in **Vercel Dashboard → Project → Settings → Environment Variables**:
+
+| Key | Value |
+|---|---|
+| `DATABASE_URL` | `postgresql://postgres.nqmptcvfloejromioqog:8J0Zqux0DwC1hq2C@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres` |
+| `SUPABASE_URL` | `https://nqmptcvfloejromioqog.supabase.co` |
+| `SUPABASE_ANON_KEY` | *(from server/.env)* |
+| `NODE_ENV` | `production` |
+
+> **Note:** `server/db/db.js` includes a hardcoded Supabase fallback URL so the backend works on Vercel even without environment variables set, but adding them in the dashboard is recommended.
+
+### Deploy Flow
+1. `git push origin main` → GitHub receives commit
+2. Vercel auto-detects the push → triggers a new deployment build
+3. Vercel runs `npm --prefix client run build` → produces `client/dist/`
+4. Vercel packages `api/index.js` + `server/**` as a Serverless Function
+5. Deployment is live at `https://smart-kitchen-inventory-lyart.vercel.app`
+
+### Live URLs
+- **Production App:** `https://smart-kitchen-inventory-lyart.vercel.app`
+- **Production API Health:** `https://smart-kitchen-inventory-lyart.vercel.app/api/health`
+- **GitHub Repository:** `https://github.com/24p1fsmb028-jpg/smart-kitchen-inventory`
+
+---
+
+## 11. Critical Rules & Guidelines for Future AI Assistants
 
 1. **NEVER Run `git push` Automatically:**
    The repository owner explicitly requires asking for permission before pushing to GitHub. Always commit locally with clean git messages and ask the user before running `git push`.
@@ -406,33 +509,70 @@ function calculateDaysRemaining(currentQuantity, weeklyUsage) {
 3. **Privacy Masking:**
    Do NOT hardcode personal phone numbers into public input placeholders or text inputs. Use generic placeholders like `+92 300 0000000`.
 4. **Dual-Path Network Requests:**
-   Always use the dual-path pattern (`/api/...` with fallback to `http://localhost:5000/api/...`) in frontend components to ensure API calls never fail due to proxy or CORS issues.
+   Always use the dual-path pattern (`/api/...` with fallback to `http://localhost:5000/api/...`) in `api.js` so calls never fail due to proxy or CORS issues.
 5. **No Demo Profiles on Login Page:**
    Keep the login page strictly an email and password form. Do not re-add 1-click demo login buttons.
+6. **Inventory Seed Limits:**
+   All new approved user accounts are seeded with exactly **4 categories** and **20 items**. Do NOT change this limit. Users must add more themselves.
+7. **Serverless Filesystem Safety:**
+   Vercel runs on a read-only filesystem. Never add synchronous `fs.mkdirSync` or `fs.writeFileSync` calls outside a `try/catch` guard in `server/db/db.js`. Always check `fs.existsSync(DATA_DIR)` before writing.
+8. **Express App Separation:**
+   `server/app.js` exports the configured Express app WITHOUT calling `app.listen()`. `server/index.js` calls `app.listen()` for local use. `api/index.js` exports the app directly for Vercel. Never merge these back into one file.
+9. **English Only:**
+   All UI labels, toast messages, comments, variable names, and code must be in English. No Urdu.
+10. **Mobile Responsiveness:**
+    All new UI must be responsive. Use `flex-wrap`, `overflow-x: hidden`, and `whitespace-nowrap` on status pills. Test at 375px viewport width before committing.
 
 ---
 
-## 11. Developer Playbook & Recipes
+## 12. Developer Playbook & Recipes
 
 ### How to Add a New Database Table
-1. Add the `CREATE TABLE` query in `server/db/schema.sql`.
-2. Add table initialization in `initDB()` inside `server/db/db.js`.
-3. Add helper query methods inside `server/db/db.js`.
+1. Add the `CREATE TABLE IF NOT EXISTS` query in `server/db/schema.sql`.
+2. Add helper query methods inside the `db` export object in `server/db/db.js`.
+3. Add a new Express router in `server/routes/newroute.js`.
+4. Mount the router in `server/app.js` (both `/api/newroute` and `/newroute` for Vercel compatibility).
 
 ### How to Add a New Page to the Kitchen Workspace
 1. Create `client/src/pages/NewFeaturePage.jsx`.
 2. Open `client/src/App.jsx` and import the new page.
 3. Wrap the route in `<PrivateRoute><KitchenLayout><NewFeaturePage /></KitchenLayout></PrivateRoute>`.
-4. Add the navigation link into `client/src/components/layout/Sidebar.jsx` and `Navbar.jsx`.
+4. Add the navigation link into `client/src/components/layout/Sidebar.jsx` and `MobileNav.jsx`.
+5. Add `useEffect(() => { refreshAll(); }, [])` at the top of the page component to guarantee fresh data on every visit.
 
 ### How to Test an API Endpoint from Terminal
 ```bash
-# Test health check
-node -e "fetch('http://localhost:5000/api/health').then(function(r){return r.json()}).then(console.log)"
+# Test local health check
+node -e "fetch('http://localhost:5000/api/health').then(r => r.json()).then(console.log)"
 
-# Test admin telemetry
-node -e "fetch('http://localhost:5000/api/admin/metrics').then(function(r){return r.json()}).then(console.log)"
+# Test live Vercel API
+node -e "fetch('https://smart-kitchen-inventory-lyart.vercel.app/api/health').then(r => r.text()).then(console.log)"
+
+# Test categories
+node -e "fetch('http://localhost:5000/api/categories').then(r => r.json()).then(d => console.log('Cats:', d.data?.length))"
+```
+
+### How to Deploy a Code Fix to Vercel
+```bash
+# 1. Stage your changes
+git add <files>
+
+# 2. Commit with a descriptive message
+git commit -m "fix: describe what was fixed"
+
+# 3. Push (ask the user first!)
+git push origin main
+# Vercel auto-deploys from GitHub main within ~60 seconds
+```
+
+### How to Seed the Database
+The database auto-seeds on first connection via `initDB()`. If the `categories` table is empty it calls `db.resetToSeed()`. If `users` is empty it calls `db.seedUsers()`.
+
+To manually force a reseed:
+```bash
+node -e "import('./server/db/db.js').then(({initDB, db}) => initDB().then(() => db.resetToSeed()).then(() => { console.log('Seeded!'); process.exit(0); }))"
 ```
 
 ---
 *Last Updated: September 2026 | Smart Kitchen Inventory Platform | Maintainer: 24p1fsmb028-jpg*
+
