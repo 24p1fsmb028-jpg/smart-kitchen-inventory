@@ -10,7 +10,13 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
-        changeOrigin: true
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy) => {
+          proxy.on('error', (err) => {
+            console.warn('[Vite Proxy Error]', err.message);
+          });
+        }
       }
     }
   }

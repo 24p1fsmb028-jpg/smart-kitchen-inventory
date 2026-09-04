@@ -95,6 +95,36 @@ export default function PurchaseScannerPage() {
     } catch {}
   };
 
+  // Smart fetch: tries Vite proxy first, falls back to direct localhost:5000
+  // This handles both port 3000 (proxy works) and port 3001 (no proxy, use direct)
+  const uploadToScanner = async (formData, headers) => {
+    const tryUpload = async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/purchase-scanner/upload`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to process shopping list.');
+      }
+      return data;
+    };
+
+    try {
+      // First try: Vite proxy (works on port 3000)
+      return await tryUpload('/api');
+    } catch (proxyErr) {
+      if (proxyErr.message && proxyErr.message !== 'fetch failed' && !proxyErr.message.includes('Failed to fetch')) {
+        // Got a real API error (4xx/5xx), not a network error — rethrow it
+        throw proxyErr;
+      }
+      // Second try: direct backend URL (works on port 3001 or when proxy is missing)
+      const backendHost = window.location.hostname || 'localhost';
+      return await tryUpload(`http://${backendHost}:5000/api`);
+    }
+  };
+
   const handleScan = async () => {
     if (!selectedFile) {
       setErrorMessage('Please select a file to scan.');
@@ -110,7 +140,7 @@ export default function PurchaseScannerPage() {
       setScanStep('Scanning your shopping list...');
       await new Promise(r => setTimeout(r, 600));
 
-      // Step 2: Checking
+      // Step 2: Build form data
       setScanStep('Checking purchased items...');
       const formData = new FormData();
       formData.append('file', selectedFile);
@@ -118,24 +148,14 @@ export default function PurchaseScannerPage() {
         formData.append('userId', user.id);
       }
 
-      // Step 3: Server upload & restocking
+      // Step 3: Upload & restock
       setScanStep('Updating inventory...');
       const headers = {};
       if (user?.id) {
         headers['x-user-id'] = user.id;
       }
 
-      const res = await fetch('/api/purchase-scanner/upload', {
-        method: 'POST',
-        headers,
-        body: formData
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to process shopping list.');
-      }
+      const data = await uploadToScanner(formData, headers);
 
       setScanResult(data);
 

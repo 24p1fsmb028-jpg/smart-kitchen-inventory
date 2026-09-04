@@ -2,7 +2,12 @@
  * Centralized API client for Smart Kitchen Inventory
  */
 
-const API_BASE = '/api';
+// Dynamically resolve API base:
+// - Port 3000 → use Vite proxy (/api)
+// - Port 3001+ → Vite proxy not available, hit backend directly
+const API_BASE = (typeof window !== 'undefined' && window.location.port === '3001')
+  ? `http://${window.location.hostname}:5000/api`
+  : '/api';
 
 async function request(endpoint, options = {}) {
   const headers = {
