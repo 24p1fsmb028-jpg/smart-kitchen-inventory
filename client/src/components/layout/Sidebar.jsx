@@ -8,7 +8,8 @@ import {
   Settings,
   Sparkles,
   Layers,
-  Shield
+  Shield,
+  ScanLine
 } from 'lucide-react';
 import { useAlerts } from '../../context/AlertContext';
 import { useInventory } from '../../context/InventoryContext';
@@ -47,6 +48,13 @@ export default function Sidebar() {
       icon: ShoppingBag,
       badge: urgentCount > 0 ? urgentCount : null,
       badgeColor: 'bg-rose-500 text-white'
+    },
+    {
+      to: '/purchase-scanner',
+      label: 'Purchase Scanner',
+      icon: ScanLine,
+      badge: 'Auto',
+      badgeColor: 'bg-emerald-500 text-white'
     },
     {
       to: '/alerts',

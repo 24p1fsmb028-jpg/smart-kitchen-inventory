@@ -10,6 +10,7 @@ import settingsRouter from './routes/settings.js';
 import statsRouter from './routes/stats.js';
 import authRouter from './routes/auth.js';
 import adminRouter from './routes/admin.js';
+import purchaseScannerRouter from './routes/purchaseScanner.js';
 
 dotenv.config();
 
@@ -93,6 +94,9 @@ app.use('/settings', settingsRouter);
 
 app.use('/api/stats', statsRouter);
 app.use('/stats', statsRouter);
+
+app.use('/api/purchase-scanner', purchaseScannerRouter);
+app.use('/purchase-scanner', purchaseScannerRouter);
 
 // Error Handler
 app.use((err, req, res, next) => {

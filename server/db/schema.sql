@@ -89,6 +89,30 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 8. Shopping Lists Table (Persistent lists for PDF generation and restocking verification)
+CREATE TABLE IF NOT EXISTS shopping_lists (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
+    kitchen_name VARCHAR(150) DEFAULT 'My Kitchen',
+    total_items INT DEFAULT 0,
+    source VARCHAR(50) DEFAULT 'pdf_export',
+    processed BOOLEAN DEFAULT FALSE,
+    processed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. Shopping List Items Table (Snapshot of items on the shopping list with purchase status)
+CREATE TABLE IF NOT EXISTS shopping_list_items (
+    id VARCHAR(64) PRIMARY KEY,
+    shopping_list_id VARCHAR(64) REFERENCES shopping_lists(id) ON DELETE CASCADE,
+    item_id VARCHAR(64) REFERENCES items(id) ON DELETE CASCADE,
+    item_name VARCHAR(150) NOT NULL,
+    quantity NUMERIC(10, 2) NOT NULL DEFAULT 1,
+    unit VARCHAR(50) NOT NULL DEFAULT 'pieces',
+    purchased BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_items_category_id ON items(category_id);
 CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
@@ -100,3 +124,8 @@ CREATE INDEX IF NOT EXISTS idx_users_is_online ON users(is_online);
 CREATE INDEX IF NOT EXISTS idx_account_requests_status ON account_requests(status);
 CREATE INDEX IF NOT EXISTS idx_account_requests_email ON account_requests(email);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_timestamp ON activity_logs(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_shopping_lists_user_id ON shopping_lists(user_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_lists_processed ON shopping_lists(processed);
+CREATE INDEX IF NOT EXISTS idx_shopping_list_items_list_id ON shopping_list_items(shopping_list_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_list_items_item_id ON shopping_list_items(item_id);
+

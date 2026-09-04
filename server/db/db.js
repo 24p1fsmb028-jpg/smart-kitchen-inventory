@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import pkg from 'pg';
 const { Pool } = pkg;
 import dotenv from 'dotenv';
+import { v4 as uuidv4 } from 'uuid';
 import { initialCategories, initialItems, initialAlerts, initialSettings, initialUsers, initialAccountRequests } from './seedData.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -87,7 +88,9 @@ class FileStore {
       categories: [...initialCategories],
       items: [...initialItems],
       alerts: [...initialAlerts],
-      settings: { ...initialSettings }
+      settings: { ...initialSettings },
+      shopping_lists: [],
+      shopping_list_items: []
     };
     this.save(defaultData);
     return defaultData;
@@ -109,7 +112,9 @@ class FileStore {
       categories: JSON.parse(JSON.stringify(initialCategories)),
       items: JSON.parse(JSON.stringify(initialItems)),
       alerts: JSON.parse(JSON.stringify(initialAlerts)),
-      settings: JSON.parse(JSON.stringify(initialSettings))
+      settings: JSON.parse(JSON.stringify(initialSettings)),
+      shopping_lists: [],
+      shopping_list_items: []
     };
     this.save();
     return this.data;
@@ -1073,6 +1078,276 @@ export const db = {
 
     console.log(`✅ Verified standard inventory: ${initialCategories.length} categories, ${initialItems.length} products.`);
     return { categories: initialCategories.length, items: initialItems.length };
+  },
+
+  // --- SHOPPING LISTS & RESTOCKING ---
+  async createShoppingList(list, items = []) {
+    if (usePostgres) {
+      const client = await pgPool.connect();
+      try {
+        await client.query('BEGIN');
+        const listRes = await client.query(
+          `INSERT INTO shopping_lists (id, user_id, kitchen_name, total_items, source, processed, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+          [
+            list.id,
+            list.user_id || null,
+            list.kitchen_name || 'My Kitchen',
+            items.length,
+            list.source || 'pdf_export',
+            false,
+            list.created_at || new Date().toISOString()
+          ]
+        );
+
+        for (const item of items) {
+          await client.query(
+            `INSERT INTO shopping_list_items (id, shopping_list_id, item_id, item_name, quantity, unit, purchased, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              item.id || `sli-${uuidv4().slice(0, 8)}`,
+              list.id,
+              item.item_id,
+              item.item_name,
+              parseFloat(item.quantity || 1),
+              item.unit || 'pieces',
+              false,
+              new Date().toISOString()
+            ]
+          );
+        }
+        await client.query('COMMIT');
+        return listRes.rows[0];
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } else {
+      fileStore.data.shopping_lists = fileStore.data.shopping_lists || [];
+      fileStore.data.shopping_list_items = fileStore.data.shopping_list_items || [];
+      const newList = {
+        ...list,
+        total_items: items.length,
+        processed: false,
+        created_at: list.created_at || new Date().toISOString()
+      };
+      fileStore.data.shopping_lists.push(newList);
+      for (const item of items) {
+        fileStore.data.shopping_list_items.push({
+          id: item.id || `sli-${uuidv4().slice(0, 8)}`,
+          shopping_list_id: list.id,
+          item_id: item.item_id,
+          item_name: item.item_name,
+          quantity: parseFloat(item.quantity || 1),
+          unit: item.unit || 'pieces',
+          purchased: false,
+          created_at: new Date().toISOString()
+        });
+      }
+      fileStore.save();
+      return newList;
+    }
+  },
+
+  async getShoppingListById(id) {
+    if (usePostgres) {
+      const res = await pgPool.query('SELECT * FROM shopping_lists WHERE id = $1', [id]);
+      return res.rows[0] || null;
+    } else {
+      fileStore.data.shopping_lists = fileStore.data.shopping_lists || [];
+      return fileStore.data.shopping_lists.find(l => l.id === id) || null;
+    }
+  },
+
+  async getShoppingListItems(shoppingListId) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        'SELECT * FROM shopping_list_items WHERE shopping_list_id = $1 ORDER BY item_name ASC',
+        [shoppingListId]
+      );
+      return res.rows.map(r => ({
+        ...r,
+        quantity: parseFloat(r.quantity)
+      }));
+    } else {
+      fileStore.data.shopping_list_items = fileStore.data.shopping_list_items || [];
+      return fileStore.data.shopping_list_items.filter(i => i.shopping_list_id === shoppingListId);
+    }
+  },
+
+  async getShoppingListsByUser(userId, limit = 20) {
+    if (usePostgres) {
+      const res = await pgPool.query(
+        'SELECT * FROM shopping_lists WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC LIMIT $2',
+        [userId, limit]
+      );
+      return res.rows;
+    } else {
+      fileStore.data.shopping_lists = fileStore.data.shopping_lists || [];
+      return fileStore.data.shopping_lists
+        .filter(l => !l.user_id || l.user_id === userId)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, limit);
+    }
+  },
+
+  async processRestockAtomic({ shoppingListId, userId, purchasedItems }) {
+    if (usePostgres) {
+      const client = await pgPool.connect();
+      try {
+        await client.query('BEGIN');
+        const listRes = await client.query('SELECT * FROM shopping_lists WHERE id = $1 FOR UPDATE', [shoppingListId]);
+        const list = listRes.rows[0];
+        if (!list) {
+          throw new Error('Shopping list not found.');
+        }
+        if (list.processed) {
+          throw new Error('This shopping list has already been processed.');
+        }
+        if (userId && list.user_id && list.user_id !== userId) {
+          throw new Error('You are not authorized to process this shopping list.');
+        }
+
+        const restockedItems = [];
+
+        for (const p of purchasedItems) {
+          const itemRes = await client.query('SELECT * FROM items WHERE id = $1 FOR UPDATE', [p.item_id]);
+          const existing = itemRes.rows[0];
+          if (!existing) continue;
+
+          const purchasedQty = parseFloat(p.purchased_quantity || 0);
+          if (purchasedQty <= 0) continue;
+
+          const currentQty = parseFloat(existing.current_quantity || 0);
+          const newQty = Math.round((currentQty + purchasedQty) * 100) / 100;
+          const threshold = parseFloat(existing.low_stock_threshold || 1);
+
+          let newStatus = 'in_stock';
+          if (newQty <= 0) newStatus = 'out_of_stock';
+          else if (newQty <= threshold) newStatus = 'low';
+
+          // Update item quantity and status
+          await client.query(
+            `UPDATE items SET current_quantity = $1, status = $2, last_updated = $3 WHERE id = $4`,
+            [newQty, newStatus, new Date().toISOString(), existing.id]
+          );
+
+          // Mark shopping list item as purchased
+          await client.query(
+            `UPDATE shopping_list_items SET purchased = true WHERE shopping_list_id = $1 AND item_id = $2`,
+            [shoppingListId, existing.id]
+          );
+
+          // Create Restocked alert
+          const alertId = `alert-${uuidv4().slice(0, 8)}`;
+          const alertMsg = `Restocked ${existing.name} by ${purchasedQty} ${existing.unit}. New quantity: ${newQty} ${existing.unit}.`;
+          await client.query(
+            `INSERT INTO alerts (id, item_id, item_name, type, message, timestamp, read)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [alertId, existing.id, existing.name, 'restocked', alertMsg, new Date().toISOString(), false]
+          );
+
+          restockedItems.push({
+            item_id: existing.id,
+            item_name: existing.name,
+            purchased_quantity: purchasedQty,
+            unit: existing.unit,
+            old_quantity: currentQty,
+            new_quantity: newQty,
+            stock_status: newStatus
+          });
+        }
+
+        // Mark shopping list as processed
+        await client.query(
+          `UPDATE shopping_lists SET processed = true, processed_at = $1 WHERE id = $2`,
+          [new Date().toISOString(), shoppingListId]
+        );
+
+        await client.query('COMMIT');
+        return {
+          success: true,
+          shopping_list_id: shoppingListId,
+          processed: true,
+          restocked_items: restockedItems
+        };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    } else {
+      fileStore.data.shopping_lists = fileStore.data.shopping_lists || [];
+      fileStore.data.shopping_list_items = fileStore.data.shopping_list_items || [];
+      const list = fileStore.data.shopping_lists.find(l => l.id === shoppingListId);
+      if (!list) throw new Error('Shopping list not found.');
+      if (list.processed) throw new Error('This shopping list has already been processed.');
+      if (userId && list.user_id && list.user_id !== userId) {
+        throw new Error('You are not authorized to process this shopping list.');
+      }
+
+      const restockedItems = [];
+      for (const p of purchasedItems) {
+        const idx = fileStore.data.items.findIndex(i => i.id === p.item_id);
+        if (idx === -1) continue;
+        const existing = fileStore.data.items[idx];
+        const purchasedQty = parseFloat(p.purchased_quantity || 0);
+        if (purchasedQty <= 0) continue;
+
+        const currentQty = parseFloat(existing.current_quantity || 0);
+        const newQty = Math.round((currentQty + purchasedQty) * 100) / 100;
+        const threshold = parseFloat(existing.low_stock_threshold || 1);
+
+        let newStatus = 'in_stock';
+        if (newQty <= 0) newStatus = 'out_of_stock';
+        else if (newQty <= threshold) newStatus = 'low';
+
+        fileStore.data.items[idx] = {
+          ...existing,
+          current_quantity: newQty,
+          status: newStatus,
+          last_updated: new Date().toISOString()
+        };
+
+        const sli = fileStore.data.shopping_list_items.find(s => s.shopping_list_id === shoppingListId && s.item_id === existing.id);
+        if (sli) sli.purchased = true;
+
+        const alertId = `alert-${uuidv4().slice(0, 8)}`;
+        const alertMsg = `Restocked ${existing.name} by ${purchasedQty} ${existing.unit}. New quantity: ${newQty} ${existing.unit}.`;
+        fileStore.data.alerts.unshift({
+          id: alertId,
+          item_id: existing.id,
+          item_name: existing.name,
+          type: 'restocked',
+          message: alertMsg,
+          timestamp: new Date().toISOString(),
+          read: false
+        });
+
+        restockedItems.push({
+          item_id: existing.id,
+          item_name: existing.name,
+          purchased_quantity: purchasedQty,
+          unit: existing.unit,
+          old_quantity: currentQty,
+          new_quantity: newQty,
+          stock_status: newStatus
+        });
+      }
+
+      list.processed = true;
+      list.processed_at = new Date().toISOString();
+      fileStore.save();
+      return {
+        success: true,
+        shopping_list_id: shoppingListId,
+        processed: true,
+        restocked_items: restockedItems
+      };
+    }
   }
 };
 

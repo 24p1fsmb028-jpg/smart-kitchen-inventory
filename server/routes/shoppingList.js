@@ -1,4 +1,5 @@
 import express from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db/db.js';
 import { calculateStatus, calculateDaysRemaining, handleStatusTransitionAlert } from '../services/stockEngine.js';
 
@@ -121,4 +122,70 @@ router.post('/restock-checked', async (req, res) => {
   }
 });
 
+// POST /api/shopping-list/save - Persist a snapshot shopping list for PDF generation & scanning
+router.post('/save', async (req, res) => {
+  try {
+    const { items, kitchenName, userId } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'Cannot save an empty shopping list.' });
+    }
+
+    const shoppingListId = `sl-${uuidv4().slice(0, 12)}`;
+    const listData = {
+      id: shoppingListId,
+      user_id: userId || null,
+      kitchen_name: kitchenName || 'My Kitchen',
+      source: 'pdf_export',
+      created_at: new Date().toISOString()
+    };
+
+    const formattedItems = items.map((item, idx) => ({
+      id: `sli-${uuidv4().slice(0, 8)}`,
+      item_id: item.id || item.item_id,
+      item_name: item.name || item.item_name,
+      quantity: parseFloat(item.recommended_buy_quantity || item.quantity || 1),
+      unit: item.unit || 'pieces'
+    }));
+
+    const saved = await db.createShoppingList(listData, formattedItems);
+
+    res.json({
+      success: true,
+      shopping_list_id: shoppingListId,
+      total_items: formattedItems.length,
+      list: saved,
+      items: formattedItems
+    });
+  } catch (err) {
+    console.error('Error saving shopping list:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/shopping-list/history - Retrieve user's saved shopping lists
+router.get('/history', async (req, res) => {
+  try {
+    const userId = req.query.userId || null;
+    const lists = await db.getShoppingListsByUser(userId, 20);
+    res.json({ success: true, lists });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/shopping-list/:id - Get specific shopping list details and items
+router.get('/:id', async (req, res) => {
+  try {
+    const list = await db.getShoppingListById(req.params.id);
+    if (!list) {
+      return res.status(404).json({ success: false, error: 'Shopping list not found.' });
+    }
+    const items = await db.getShoppingListItems(req.params.id);
+    res.json({ success: true, list, items });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;
+

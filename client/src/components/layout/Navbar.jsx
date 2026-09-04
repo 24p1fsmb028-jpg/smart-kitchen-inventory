@@ -11,7 +11,8 @@ import {
   Settings,
   ShoppingBag,
   Shield,
-  LogOut
+  LogOut,
+  ScanLine
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAlerts } from '../../context/AlertContext';
@@ -185,6 +186,16 @@ export default function Navbar() {
                     >
                       <ShoppingBag className="w-3.5 h-3.5" />
                       Shopping List
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        navigate('/purchase-scanner');
+                      }}
+                      className="w-full px-3.5 py-2 text-xs text-left text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 font-medium"
+                    >
+                      <ScanLine className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      Purchase Scanner
                     </button>
 
                     <div className="my-1 border-t border-slate-100 dark:border-slate-800" />

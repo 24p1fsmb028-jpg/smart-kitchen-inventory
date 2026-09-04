@@ -15,6 +15,7 @@ import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import PublicShowcasePage from './pages/PublicShowcasePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import PurchaseScannerPage from './pages/PurchaseScannerPage';
 
 // Route guard: redirect to landing page if not authenticated
 function PrivateRoute({ children }) {
@@ -126,6 +127,16 @@ export default function App() {
           <PrivateRoute>
             <KitchenLayout>
               <ShoppingListPage />
+            </KitchenLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/purchase-scanner"
+        element={
+          <PrivateRoute>
+            <KitchenLayout>
+              <PurchaseScannerPage />
             </KitchenLayout>
           </PrivateRoute>
         }

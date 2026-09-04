@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { PDFDocument, rgb } from 'pdf-lib';
 
 // Standard Pakistani Superstore Aisles (Pure English)
 export const PAKISTANI_STORE_AISLES = [
@@ -94,14 +95,15 @@ export function groupItemsBySuperstoreAisle(items) {
 }
 
 /**
- * Generates and downloads a clean, professional PDF shopping checklist.
- * Notes and Buy Limit removed as requested.
+ * Generates and downloads an interactive, professional PDF shopping checklist
+ * with real AcroForm clickable checkboxes for automatic purchase scanning.
  */
-export function generateSuperstoreShoppingPdf({
+export async function generateSuperstoreShoppingPdf({
   items = [],
   kitchenName = 'My Kitchen',
   householdSize = 2,
-  includeLowStock = true
+  includeLowStock = true,
+  shoppingListId = null
 }) {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -117,9 +119,10 @@ export function generateSuperstoreShoppingPdf({
 
   if (targetItems.length === 0) {
     alert('No items found to generate PDF.');
-    return;
+    return { success: false, error: 'No items found' };
   }
 
+  const activeListId = shoppingListId || `sl-${Date.now().toString(36)}`;
   const grouped = groupItemsBySuperstoreAisle(targetItems);
   const now = new Date();
   const formattedDate = now.toLocaleDateString('en-PK', {
@@ -138,14 +141,20 @@ export function generateSuperstoreShoppingPdf({
 
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.text('SHOPPING LIST', 14, 12);
+  doc.setFontSize(14);
+  doc.text('SMART KITCHEN INVENTORY — SHOPPING LIST', 14, 11);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(167, 243, 208);
-  doc.text('Smart Kitchen Inventory — Out of Stock & Low Stock Items', 14, 18);
+  doc.setFontSize(8);
+  doc.setTextColor(167, 243, 208); // emerald-200
+  doc.text('Interactive Checklist • Check off purchased products & scan to auto-restock', 14, 17);
 
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(253, 224, 71); // yellow-300
+  doc.text(`SHOPPING LIST ID: ${activeListId}`, 14, 22);
+
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(226, 232, 240);
   doc.text(`${formattedDate} • ${formattedTime}`, 196, 12, { align: 'right' });
@@ -161,15 +170,16 @@ export function generateSuperstoreShoppingPdf({
 
   const outOfStockCount = targetItems.filter((i) => Number(i.current_quantity) <= 0 || i.status === 'out_of_stock').length;
   doc.setFont('helvetica', 'normal');
-  doc.text(`Total items: ${targetItems.length} (${outOfStockCount} Out of Stock)`, 196, 32, { align: 'right' });
+  doc.text(`Total items: ${targetItems.length} (${outOfStockCount} Out of Stock) • Scanner Ready ✓`, 196, 32, { align: 'right' });
 
   let currentY = 40;
   const aisleNames = Object.keys(grouped);
+  const checkboxWidgets = [];
 
   aisleNames.forEach((aisleName) => {
     const aisleItems = grouped[aisleName];
 
-    if (currentY > 260) {
+    if (currentY > 255) {
       doc.addPage();
       currentY = 20;
     }
@@ -180,7 +190,7 @@ export function generateSuperstoreShoppingPdf({
     doc.roundedRect(14, currentY, 182, 7.5, 1.5, 1.5, 'FD');
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
+    doc.setFontSize(9);
     doc.setTextColor(15, 23, 42);
     doc.text(aisleName.toUpperCase(), 18, currentY + 5.2);
 
@@ -191,16 +201,19 @@ export function generateSuperstoreShoppingPdf({
 
     currentY += 9.5;
 
-    // Table rows: Checkbox, Product Name, Status, Current Stock, Monthly Usage (NO buy limit, NO notes)
+    // Table rows: Checkbox, Product Name, Target Purchase Qty, Status, Current Stock, Monthly Usage
     const tableBody = aisleItems.map((item) => {
       const isOut = Number(item.current_quantity) <= 0 || item.status === 'out_of_stock';
       const statusText = isOut ? 'OUT OF STOCK' : 'LOW STOCK';
       const currentQtyText = `${item.current_quantity} ${item.unit}`;
+      const toBuyQty = item.recommended_buy_quantity || (isOut ? (item.weekly_usage || 1) * 2 : 1);
+      const buyQtyText = `${toBuyQty} ${item.unit}`;
       const monthlyUsageText = `${item.monthly_usage} ${item.unit} / mo`;
 
       return [
-        '[   ]',
+        '', // Checkbox placeholder to be overlayed with AcroForm CheckBox
         item.name,
+        buyQtyText,
         statusText,
         currentQtyText,
         monthlyUsageText
@@ -209,7 +222,7 @@ export function generateSuperstoreShoppingPdf({
 
     autoTable(doc, {
       startY: currentY,
-      head: [['Check', 'Product Name', 'Status', 'Current Stock', 'Monthly Usage']],
+      head: [['Check', 'Product Name', 'Buy Qty', 'Status', 'Current Stock', 'Monthly Usage']],
       body: tableBody,
       theme: 'grid',
       styles: {
@@ -225,18 +238,36 @@ export function generateSuperstoreShoppingPdf({
         fontSize: 8.5
       },
       columnStyles: {
-        0: { cellWidth: 16, halign: 'center', fontStyle: 'bold' },
-        1: { cellWidth: 76, fontStyle: 'bold' },
-        2: { cellWidth: 35, fontStyle: 'bold', halign: 'center' },
-        3: { cellWidth: 27, halign: 'center' },
-        4: { cellWidth: 28, halign: 'center' }
+        0: { cellWidth: 14, halign: 'center' },
+        1: { cellWidth: 66, fontStyle: 'bold' },
+        2: { cellWidth: 26, fontStyle: 'bold', halign: 'center', textColor: [5, 150, 105] }, // emerald-600
+        3: { cellWidth: 30, fontStyle: 'bold', halign: 'center' },
+        4: { cellWidth: 22, halign: 'center' },
+        5: { cellWidth: 24, halign: 'center' }
       },
       didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 2) {
+        if (data.section === 'body' && data.column.index === 3) {
           if (data.cell.raw === 'OUT OF STOCK') {
             data.cell.styles.textColor = [225, 29, 72]; // rose-600
           } else {
             data.cell.styles.textColor = [217, 119, 6]; // amber-600
+          }
+        }
+      },
+      didDrawCell: (data) => {
+        if (data.section === 'body' && data.column.index === 0) {
+          const rowItem = aisleItems[data.row.index];
+          if (rowItem) {
+            const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+            checkboxWidgets.push({
+              pageNumber: pageNum,
+              x: data.cell.x,
+              y: data.cell.y,
+              width: data.cell.width,
+              height: data.cell.height,
+              fieldName: `shoppingList_${activeListId}_item_${rowItem.id || rowItem.item_id}`,
+              itemName: rowItem.name
+            });
           }
         }
       },
@@ -256,14 +287,71 @@ export function generateSuperstoreShoppingPdf({
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      `Smart Kitchen Inventory • Page ${i} of ${totalPages}`,
+      `Smart Kitchen Inventory • List ID: ${activeListId} • Page ${i} of ${totalPages}`,
       105,
       290,
       { align: 'center' }
     );
   }
 
-  // Save the PDF file
+  // Convert to pdf-lib to inject real interactive AcroForm checkboxes
+  const pdfArrayBuffer = doc.output('arraybuffer');
+  const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
+  const form = pdfDoc.getForm();
+  const pages = pdfDoc.getPages();
+
+  // 1 mm in PDF points = 72 / 25.4 = 2.83464567
+  const MM_TO_PT = 72 / 25.4;
+  const PAGE_HEIGHT_PT = 841.89; // Standard A4 height in pt
+
+  for (const widget of checkboxWidgets) {
+    const page = pages[widget.pageNumber - 1];
+    if (!page) continue;
+
+    const cellX_pt = widget.x * MM_TO_PT;
+    const cellY_pt = PAGE_HEIGHT_PT - ((widget.y + widget.height) * MM_TO_PT);
+    const cellW_pt = widget.width * MM_TO_PT;
+    const cellH_pt = widget.height * MM_TO_PT;
+
+    const boxSize = 10.5;
+    const cbX = cellX_pt + (cellW_pt - boxSize) / 2;
+    const cbY = cellY_pt + (cellH_pt - boxSize) / 2;
+
+    try {
+      const checkBox = form.createCheckBox(widget.fieldName);
+      checkBox.addToPage(page, {
+        x: cbX,
+        y: cbY,
+        width: boxSize,
+        height: boxSize,
+        borderWidth: 1.2,
+        borderColor: rgb(0.2, 0.28, 0.38),
+        backgroundColor: rgb(1, 1, 1)
+      });
+    } catch (err) {
+      console.warn('Could not register AcroForm checkbox field:', widget.fieldName, err);
+    }
+  }
+
+  const finalPdfBytes = await pdfDoc.save();
   const fileName = `Shopping_List_${kitchenName.replace(/[^a-zA-Z0-9]/g, '_')}_${formattedDate.replace(/ /g, '_')}.pdf`;
-  doc.save(fileName);
+
+  // Trigger download in browser
+  const blob = new Blob([finalPdfBytes], { type: 'application/pdf' });
+  const downloadUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
+
+  return {
+    success: true,
+    shoppingListId: activeListId,
+    fileName,
+    totalItems: targetItems.length
+  };
 }
+

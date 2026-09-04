@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ShoppingBag,
   CheckCircle2,
@@ -10,7 +11,8 @@ import {
   Check,
   FileDown,
   Store,
-  AlertTriangle
+  AlertTriangle,
+  ScanLine
 } from 'lucide-react';
 import { useShoppingList } from '../context/ShoppingListContext';
 import { useInventory } from '../context/InventoryContext';
@@ -39,6 +41,8 @@ export default function ShoppingListPage() {
   const [showWellStocked, setShowWellStocked] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isRestocking, setIsRestocking] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [lastSavedListId, setLastSavedListId] = useState(null);
 
   // Superstore options
   const [viewMode, setViewMode] = useState('aisles'); // 'aisles' (Superstore aisles) | 'flat' (Standard)
@@ -69,13 +73,50 @@ export default function ShoppingListPage() {
   const aisleGroups = groupItemsBySuperstoreAisle(uncheckedItems);
   const aisleNames = Object.keys(aisleGroups);
 
-  const handleDownloadPdf = () => {
-    generateSuperstoreShoppingPdf({
-      items: filteredBuyItems,
-      kitchenName: user?.kitchen_name || 'My Kitchen',
-      householdSize: user?.household_size || 2,
-      includeLowStock: !filterOutOfStockOnly
-    });
+  const handleDownloadPdf = async () => {
+    if (filteredBuyItems.length === 0) {
+      alert('No items to export.');
+      return;
+    }
+
+    try {
+      setIsGeneratingPdf(true);
+      let shoppingListId = null;
+
+      // Persist the shopping list snapshot to database
+      try {
+        const res = await fetch('/api/shopping-list/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: filteredBuyItems,
+            kitchenName: user?.kitchen_name || 'My Kitchen',
+            userId: user?.id || null
+          })
+        });
+        const data = await res.json();
+        if (data.success && data.shopping_list_id) {
+          shoppingListId = data.shopping_list_id;
+          setLastSavedListId(shoppingListId);
+        }
+      } catch (err) {
+        console.warn('Backend save deferred:', err);
+      }
+
+      // Generate interactive PDF with real AcroForm checkboxes
+      await generateSuperstoreShoppingPdf({
+        items: filteredBuyItems,
+        kitchenName: user?.kitchen_name || 'My Kitchen',
+        householdSize: user?.household_size || 2,
+        includeLowStock: !filterOutOfStockOnly,
+        shoppingListId
+      });
+    } catch (err) {
+      console.error('Failed to generate interactive PDF:', err);
+      alert('Could not generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const outOfStockCount = buyNowItems.filter(
@@ -112,16 +153,31 @@ export default function ShoppingListPage() {
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Download List PDF Button */}
+          {/* Download Interactive PDF Button */}
           <button
             onClick={handleDownloadPdf}
-            className="px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            title="Download PDF Shopping List"
+            disabled={isGeneratingPdf}
+            className="px-3.5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-60 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            title="Download Interactive PDF Shopping List with Checkboxes"
           >
-            <FileDown className="w-4 h-4" />
-            <span>Download List</span>
+            {isGeneratingPdf ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileDown className="w-4 h-4" />
+            )}
+            <span>{isGeneratingPdf ? 'Generating...' : 'Download List'}</span>
             <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded font-mono uppercase tracking-wider">PDF</span>
           </button>
+
+          {/* Jump to Purchase Scanner */}
+          <Link
+            to="/purchase-scanner"
+            className="px-3.5 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+            title="Scan completed shopping list to auto-restock"
+          >
+            <ScanLine className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Scan Purchases</span>
+          </Link>
 
           {checkedItems.length > 0 && (
             <button
@@ -142,6 +198,34 @@ export default function ShoppingListPage() {
             <span>Share list</span>
           </button>
         </div>
+      </div>
+
+      {/* AI Restocking Info Banner */}
+      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200/80 dark:border-emerald-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+            <ScanLine className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="font-semibold text-slate-800 dark:text-slate-200">
+              Interactive PDF Restocking Workflow
+            </p>
+            <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+              {lastSavedListId ? (
+                <span>Interactive list generated! ID: <strong className="font-mono text-emerald-600 dark:text-emerald-400">{lastSavedListId}</strong>. Check off items while shopping, then upload it in Purchase Scanner.</span>
+              ) : (
+                <span>Download the list PDF with clickable checkboxes. When finished shopping, upload the saved PDF or a screenshot to automatically restock your kitchen inventory.</span>
+              )}
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/purchase-scanner"
+          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[11px] shadow-xs transition-all flex items-center gap-1 self-start sm:self-center whitespace-nowrap"
+        >
+          <span>Open Purchase Scanner</span>
+          <span>→</span>
+        </Link>
       </div>
 
       {/* Superstore Toolbar & View Controls */}
