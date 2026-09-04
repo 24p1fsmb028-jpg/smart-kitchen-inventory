@@ -108,6 +108,7 @@ e:\react-apps\
 │       │   ├── AllInventoryPage.jsx            <- Full inventory list (/inventory) with add/edit/delete
 │       │   ├── CategoryInventoryPage.jsx       <- Category-filtered inventory (/category/:categoryId)
 │       │   ├── ShoppingListPage.jsx            <- Auto-partitioned shopping list (/shopping-list)
+│       │   ├── PurchaseScannerPage.jsx         <- AI Purchase List Scanner (/purchase-scanner)
 │       │   ├── AlertsPage.jsx                  <- Alerts notification center (/alerts)
 │       │   └── SettingsPage.jsx                <- Pantry settings & profile preferences (/settings)
 │       └── components/
@@ -135,6 +136,8 @@ e:\react-apps\
 │   │   ├── schema.sql                          <- PostgreSQL schema with all 7 tables and indexes
 │   │   ├── seedData.js                         <- Realistic initial categories, items, and users
 │   │   └── db.js                               <- Database access client with Supabase pool + FileStore fallback
+│   ├── services/
+│   │   └── aiVisionService.js                  <- Vision AI service (supports Clarifai, Gemini, OpenAI)
 │   └── routes/
 │       ├── auth.js                             <- /api/auth (login, logout, register-request, status)
 │       ├── admin.js                            <- /api/admin (metrics, activity, requests, users, approval)
@@ -142,6 +145,7 @@ e:\react-apps\
 │       ├── items.js                            <- /api/items (CRUD + stock calculations + auto alerts)
 │       ├── alerts.js                           <- /api/alerts (read status & clear)
 │       ├── shoppingList.js                     <- /api/shopping-list (urgency partitioning)
+│       ├── purchaseScanner.js                  <- /api/purchase-scanner (PDF AcroForm & AI Vision scanner)
 │       ├── settings.js                         <- /api/settings (household & notifications)
 │       └── stats.js                            <- /api/stats (aggregate telemetry)
 │
@@ -300,6 +304,7 @@ All endpoints are rooted at `/api` and accept/return JSON payloads.
 - `GET /api/alerts` — Fetch notification feed.
 - `PATCH /api/alerts/:id/read` — Mark notification as acknowledged.
 - `GET /api/shopping-list` — Returns items split into urgent `"Buy Now"` and safe `"Stocked"`.
+- `POST /api/purchase-scanner/upload` — Upload completed shopping PDF or image screenshot; parses checked items via AcroForm or Vision AI (`aiVisionService`), automatically updates inventory quantities, and creates restock alerts.
 - `GET /api/stats` — High-level dashboard counters.
 
 ---
@@ -314,6 +319,7 @@ All endpoints are rooted at `/api` and accept/return JSON payloads.
 - `/inventory` — `AllInventoryPage`.
 - `/category/:categoryId` — `CategoryInventoryPage`.
 - `/shopping-list` — `ShoppingListPage`.
+- `/purchase-scanner` — `PurchaseScannerPage` (Purchase List Scanner & Auto Restocking).
 - `/alerts` — `AlertsPage`.
 - `/settings` — `SettingsPage`.
 
@@ -456,10 +462,10 @@ Request to vercel.app/api/categories
 | File | Purpose |
 |---|---|
 | `vercel.json` | Routes `/api/*` to serverless function; routes everything else to `index.html` |
-| `api/index.js` | Primary Vercel entry point — exports the Express `app` |
+| `api/index.js` | Primary Vercel entry point — exports Express `app` with `config.api.bodyParser = false` for file uploads |
 | `api/[...path].js` | Catch-all for all nested `/api/**` sub-routes |
 | `server/app.js` | Express app factory (shared by Vercel & local `server/index.js`) |
-| `package.json` (root) | Contains server deps (`express`, `pg`, `cors`) so Vercel installs them |
+| `package.json` (root) | Contains server deps (`express`, `pg`, `cors`, `multer`, `pdf-lib`) so Vercel installs them |
 
 ### `vercel.json` Configuration
 ```json
@@ -474,11 +480,14 @@ Request to vercel.app/api/categories
 }
 ```
 
+> **Important Serverless File Upload Note:** In `api/index.js`, Vercel's automatic body parsing must be disabled by exporting `export const config = { api: { bodyParser: false, responseLimit: false } };`. This allows Express `multer` middleware to read incoming multipart form data streams directly.
+
 ### Vercel Environment Variables
 Set these in **Vercel Dashboard → Project → Settings → Environment Variables**:
 
 | Key | Value |
 |---|---|
+| `AI_API_KEY` | `YOUR_AI_API_KEY` *(Clarifai / OpenAI / Gemini key from server/.env)* |
 | `DATABASE_URL` | `postgresql://postgres.nqmptcvfloejromioqog:8J0Zqux0DwC1hq2C@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres` |
 | `SUPABASE_URL` | `https://nqmptcvfloejromioqog.supabase.co` |
 | `SUPABASE_ANON_KEY` | *(from server/.env)* |
